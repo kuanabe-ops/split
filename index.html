@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Split. Midnight Matte 6.9.2</title>
+    <title>Split. Midnight Matte 6.9.3</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
@@ -126,7 +126,7 @@
                     <div>
                         <div class="flex justify-between items-center mb-4"><span class="text-[10px] text-gray-500 uppercase f-medium">誰付款？</span><button @click="form.pMode = form.pMode==='equal'?'manual':'equal'" class="text-[10px] bg-white/5 text-gray-400 px-4 py-1.5 rounded-full">{{ form.pMode==='equal' ? '平均' : '手動' }}</button></div>
                         <div v-if="form.pMode==='equal'" class="flex flex-wrap gap-2">
-                            <button v-for="m in members" @click="toggleMemberPay(m.id)" :class="form.pList.includes(m.id)||form.pList.includes(String(m.id))?'bg-blue-500/20 text-blue-200 border-blue-400/20':'bg-white/5 text-gray-500'" class="px-5 py-2.5 rounded-2xl text-xs f-medium border border-transparent">{{m.name}}</button>
+                            <button v-for="m in members" @click="toggleMemberPay(m.id)" :class="form.pList.map(String).includes(String(m.id))?'bg-blue-500/20 text-blue-200 border-blue-400/20':'bg-white/5 text-gray-500'" class="px-5 py-2.5 rounded-2xl text-xs f-medium border border-transparent transition-all">{{m.name}}</button>
                         </div>
                         <div v-else class="space-y-3">
                             <div v-for="m in members" class="flex justify-between items-center p-3 bg-white/5 rounded-2xl">
@@ -139,7 +139,7 @@
                     <div>
                         <div class="flex justify-between items-center mb-4"><span class="text-[10px] text-gray-500 uppercase f-medium">誰分攤？</span><div class="flex gap-2"><button v-if="form.sMode==='equal'" @click="toggleAllSplit" class="text-[10px] text-gray-400 f-medium mr-2">全選</button><button @click="form.sMode = form.sMode==='equal'?'manual':'equal'" class="text-[10px] bg-white/5 text-gray-400 px-4 py-1.5 rounded-full">{{ form.sMode==='equal' ? '平均' : '手動' }}</button></div></div>
                         <div v-if="form.sMode==='equal'" class="flex flex-wrap gap-2">
-                            <button v-for="m in members" @click="toggleMemberSplit(m.id)" :class="form.sList.includes(m.id)||form.sList.includes(String(m.id))?'bg-blue-500/20 text-blue-200 border-blue-400/20':'bg-white/5 text-gray-500'" class="px-5 py-2.5 rounded-2xl text-xs f-medium border border-transparent">{{m.name}}</button>
+                            <button v-for="m in members" @click="toggleMemberSplit(m.id)" :class="form.sList.map(String).includes(String(m.id))?'bg-blue-500/20 text-blue-200 border-blue-400/20':'bg-white/5 text-gray-500'" class="px-5 py-2.5 rounded-2xl text-xs f-medium border border-transparent transition-all">{{m.name}}</button>
                         </div>
                         <div v-else class="space-y-3">
                             <div v-for="m in members" class="flex justify-between items-center p-3 bg-white/5 rounded-2xl">
@@ -248,8 +248,11 @@
 
             function openEditExpense(e) {
                 isEditing.value = true; editingExpenseId.value = e.id;
-                const activePayers = Object.keys(e.payers).filter(id => members.value.some(m => m.id == id) && Number(e.payers[id]) > 0.1);
-                const activeSplitters = Object.keys(e.split_details).filter(id => members.value.some(m => m.id == id) && Number(e.split_details[id]) > 0.1);
+                // 核心修復：從 JSON 物件提取 ID 並同時兼容平均模式的顯示
+                const activePayers = Object.keys(e.payers).filter(id => members.value.some(m => String(m.id) === String(id)) && Number(e.payers[id]) > 0.01);
+                const activeSplitters = Object.keys(e.split_details).filter(id => members.value.some(m => String(m.id) === String(id)) && Number(e.split_details[id]) > 0.01);
+                
+                // 預設為手動，但 pList 和 sList 會提供給平均模式切換時使用
                 form.value = { title: e.title, amount: e.amount, date: e.date, pMode: 'manual', pList: activePayers, manualP: {...e.payers}, sMode: 'manual', sList: activeSplitters, manualS: {...e.split_details} };
                 members.value.forEach(m => { if (form.value.manualP[m.id] === undefined) form.value.manualP[m.id] = 0; if (form.value.manualS[m.id] === undefined) form.value.manualS[m.id] = 0; });
                 showModal.value = true;
@@ -291,8 +294,18 @@
             const backToHome = () => { if (adminPass.value) { isLocked.value = true; pin.value = ''; } else { currentProjectId.value = null; fetchProjects(); } };
             const closePinPad = () => { isLocked.value = false; showPassSettings.value = false; pin.value = ''; };
             const triggerPassSetup = () => { pin.value = ''; showPassSettings.value = true; };
-            function toggleMemberPay(id) { const i = form.value.pList.indexOf(id); if (i > -1) form.value.pList.splice(i, 1); else form.value.pList.push(id); }
-            function toggleMemberSplit(id) { const i = form.value.sList.indexOf(id); if (i > -1) form.value.sList.splice(i, 1); else form.value.sList.push(id); }
+            
+            // 點擊切換邏輯
+            function toggleMemberPay(id) { 
+                const sid = String(id); 
+                const idx = form.value.pList.map(String).indexOf(sid);
+                if (idx > -1) form.value.pList.splice(idx, 1); else form.value.pList.push(id);
+            }
+            function toggleMemberSplit(id) { 
+                const sid = String(id); 
+                const idx = form.value.sList.map(String).indexOf(sid);
+                if (idx > -1) form.value.sList.splice(idx, 1); else form.value.sList.push(id);
+            }
             function toggleAllSplit() { if (form.value.sList.length === members.value.length) form.value.sList = []; else form.value.sList = members.value.map(m => m.id); }
             function copyLink() { navigator.clipboard.writeText(window.location.href); showToast.value = true; setTimeout(() => showToast.value = false, 2000); }
 
