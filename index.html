@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>極簡分帳</title>
+    <title>極簡分帳 Pro</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
@@ -11,24 +11,25 @@
     <script src="https://unpkg.com/lucide@latest"></script>
 
     <style>
-        body { background-color: #F8F9FA; color: #2D3436; font-family: -apple-system, system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
-        .rounded-3xl { border-radius: 24px; }
-        .card { @apply bg-white border border-gray-100 shadow-sm rounded-3xl transition-all; }
-        .input-pill { @apply w-full bg-gray-100 border-none rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-black/5 transition-all; }
+        body { background-color: #F8F9FA; color: #171717; font-family: -apple-system, system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+        .rounded-3xl { border-radius: 28px; }
+        .card { @apply bg-white border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-3xl transition-all; }
+        .input-pill { @apply w-full bg-gray-50 border-none rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-black/5 transition-all font-medium; }
         .btn-round { @apply rounded-2xl px-6 py-4 font-bold transition-all active:scale-95 flex items-center justify-center gap-2; }
+        
+        /* 數字鍵盤按鈕 */
+        .pin-btn { @apply w-20 h-20 rounded-full bg-white shadow-sm flex items-center justify-center text-2xl font-semibold active:bg-gray-100 transition-colors border border-gray-50; }
+        .pin-dot { @apply w-3 h-3 rounded-full transition-all duration-300; }
         
         /* 極簡 Toast */
         .minimal-toast {
-            position: fixed; top: -50px; left: 50%; transform: translateX(-50%);
-            background: rgba(255,255,255,0.95); backdrop-filter: blur(10px);
-            padding: 10px 24px; border-radius: 50px; border: 1px solid #eee;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.05); z-index: 1000;
-            font-size: 14px; pointer-events: none; transition: 0.5s cubic-bezier(0.68, -0.55, 0.27, 1.55); opacity: 0;
+            position: fixed; top: -100px; left: 50%; transform: translateX(-50%);
+            background: rgba(0,0,0,0.8); color: white;
+            padding: 12px 28px; border-radius: 50px;
+            z-index: 1000; font-size: 14px; pointer-events: none; transition: 0.5s cubic-bezier(0.18, 0.89, 0.32, 1.28); opacity: 0;
         }
-        .toast-show { opacity: 1; top: 30px; }
+        .toast-show { opacity: 1; top: 40px; }
 
-        .pin-btn { @apply w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center text-xl font-bold active:bg-gray-200; }
-        .member-row { @apply flex items-center gap-3 p-4 bg-white border border-gray-100 rounded-2xl mb-2 hover:border-gray-300; }
         [v-cloak] { display: none; }
     </style>
 </head>
@@ -38,179 +39,198 @@
 
     <div id="toast" class="minimal-toast">連結已複製</div>
 
-    <div v-if="isLocked" class="fixed inset-0 bg-white/90 backdrop-blur-xl z-[100] flex flex-col items-center justify-center p-8">
-        <i data-lucide="lock" class="w-12 h-12 mb-6 opacity-20"></i>
-        <h2 class="text-xl font-bold mb-8">管理員驗證</h2>
-        <div class="flex gap-4 mb-12">
-            <div v-for="i in 4" :class="pin.length >= i ? 'bg-black' : 'bg-gray-200'" class="w-4 h-4 rounded-full transition-all"></div>
+    <div v-if="isLocked || showPassSettings" class="fixed inset-0 bg-[#F8F9FA] z-[200] flex flex-col items-center justify-center p-8">
+        <div class="mb-10 text-center">
+            <h2 class="text-2xl font-black mb-2">{{ pinContext.title }}</h2>
+            <p class="text-gray-400 text-sm">{{ pinContext.sub }}</p>
         </div>
+        
+        <div class="flex gap-5 mb-16">
+            <div v-for="i in 4" :class="pin.length >= i ? 'bg-black scale-125' : 'bg-gray-200'" class="pin-dot"></div>
+        </div>
+
         <div class="grid grid-cols-3 gap-6">
             <button v-for="n in 9" @click="pressPin(n)" class="pin-btn">{{n}}</button>
-            <button @click="pin=''" class="pin-btn text-sm">清除</button>
+            <button @click="pin=''" class="text-gray-400 font-bold">清除</button>
             <button @click="pressPin(0)" class="pin-btn">0</button>
-            <button @click="isLocked=false" class="pin-btn text-sm text-gray-400">取消</button>
+            <button @click="closePinPad" class="text-black font-bold">取消</button>
         </div>
     </div>
 
-    <div v-if="!currentProjectId" class="flex flex-col h-full pt-8">
-        <header class="flex justify-between items-center mb-8 px-2">
+    <div v-if="!currentProjectId" class="flex flex-col h-full pt-8 animate-in fade-in duration-500">
+        <header class="flex justify-between items-end mb-10 px-2">
             <div>
-                <h1 class="text-3xl font-black tracking-tighter">分帳神器</h1>
-                <p class="text-gray-400 text-sm">極簡、圓潤、安全</p>
+                <h1 class="text-4xl font-black tracking-tighter">Split.</h1>
+                <p class="text-gray-400 text-sm font-medium mt-1">簡約、質感的智慧分帳</p>
             </div>
-            <button @click="showPassSettings = true" class="p-3 bg-white rounded-full shadow-sm border border-gray-50"><i data-lucide="settings" class="w-5 h-5"></i></button>
+            <button @click="triggerPassSetup" class="w-12 h-12 bg-white rounded-2xl shadow-sm border border-gray-50 flex items-center justify-center"><i data-lucide="shield-check" class="w-5 h-5"></i></button>
         </header>
 
-        <div class="card p-4 mb-8 border-dashed border-2 bg-gray-50/50">
-            <div class="flex gap-2">
-                <input v-model="newProjectTitle" type="text" placeholder="輸入新專案名稱..." class="flex-1 bg-transparent px-2 outline-none font-bold">
-                <button @click="createProject" class="w-12 h-12 bg-black text-white rounded-2xl flex items-center justify-center"><i data-lucide="plus"></i></button>
-            </div>
+        <div class="card p-5 mb-8 bg-gray-50/50 border-dashed border-2 flex gap-3">
+            <input v-model="newProjectTitle" type="text" placeholder="新的旅行或聚餐名稱..." class="flex-1 bg-transparent px-2 outline-none font-bold text-lg">
+            <button @click="createProject" class="w-12 h-12 bg-black text-white rounded-2xl flex items-center justify-center shadow-lg active:scale-90 transition-transform"><i data-lucide="plus"></i></button>
         </div>
 
-        <div class="space-y-4 flex-1 overflow-y-auto pb-20">
-            <div v-for="p in projects" :key="p.id" @click="enterProject(p.id)" class="card p-5 flex justify-between items-center hover:scale-[1.02] active:scale-95">
+        <div class="space-y-4 flex-1 overflow-y-auto">
+            <div v-for="p in projects" :key="p.id" @click="enterProject(p.id)" class="card p-6 flex justify-between items-center group active:scale-95">
                 <div>
-                    <h3 class="font-bold text-lg">{{ p.name }}</h3>
-                    <p class="text-xs text-gray-400">{{ formatDate(p.created_at) }}</p>
+                    <h3 class="font-black text-xl">{{ p.name }}</h3>
+                    <p class="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">{{ formatDate(p.created_at) }}</p>
                 </div>
-                <div class="flex gap-1">
-                    <button @click.stop="editProject(p)" class="p-2 text-gray-300 hover:text-black"><i data-lucide="edit-3" class="w-4 h-4"></i></button>
-                    <button @click.stop="deleteProject(p.id)" class="p-2 text-gray-300 hover:text-red-500"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                <div class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button @click.stop="editProject(p)" class="p-2 text-gray-400 hover:text-black"><i data-lucide="edit-3" class="w-4 h-4"></i></button>
+                    <button @click.stop="deleteProject(p.id)" class="p-2 text-gray-400 hover:text-red-500"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
                 </div>
             </div>
-            <div v-if="projects.length === 0" class="text-center py-20 text-gray-300">目前沒有專案</div>
         </div>
     </div>
 
     <div v-else class="flex flex-col h-screen -m-4">
-        <header class="px-6 py-4 flex justify-between items-center bg-white/80 backdrop-blur-md border-b border-gray-50 sticky top-0 z-10">
+        <header class="px-6 py-4 flex justify-between items-center bg-white/70 backdrop-blur-xl border-b border-gray-50 sticky top-0 z-10">
             <button @click="backToHome" class="p-2 bg-gray-50 rounded-full"><i data-lucide="home" class="w-5 h-5"></i></button>
-            <h2 class="font-bold truncate px-4">{{ projectMeta.name }}</h2>
-            <button @click="copyLink" class="p-2 bg-gray-50 rounded-full"><i data-lucide="link-2" class="w-5 h-5"></i></button>
+            <h2 class="font-black truncate px-4 tracking-tight">{{ projectMeta.name }}</h2>
+            <button @click="copyLink" class="p-2 bg-gray-50 rounded-full"><i data-lucide="share" class="w-5 h-5"></i></button>
         </header>
 
         <main class="flex-1 overflow-y-auto p-6 pb-32">
-            <div class="card p-8 mb-8 bg-gray-900 text-white border-none text-center rounded-[40px] shadow-xl">
-                <p class="text-gray-400 text-xs uppercase tracking-widest mb-2">專案總支出</p>
-                <h3 class="text-4xl font-black">${{ totalExpense.toLocaleString() }}</h3>
-                <button @click="showSettlement = true" class="mt-6 bg-white/10 hover:bg-white/20 px-8 py-2.5 rounded-full text-sm font-bold transition-all">查看結算結果</button>
+            <div class="card p-8 mb-10 bg-black text-white border-none relative overflow-hidden shadow-2xl shadow-black/20">
+                <div class="relative z-10">
+                    <p class="text-white/40 text-xs font-bold uppercase tracking-widest mb-2">專案總支出</p>
+                    <h3 class="text-5xl font-black italic tracking-tighter">${{ totalExpense.toLocaleString() }}</h3>
+                    <button @click="showSettlement = true" class="mt-8 bg-white text-black px-8 py-3 rounded-full text-sm font-black shadow-lg hover:bg-gray-100 transition-all">結算報告</button>
+                </div>
+                <div class="absolute -right-10 -bottom-10 w-40 h-40 bg-white/5 rounded-full blur-3xl"></div>
             </div>
 
-            <section class="mb-8">
-                <div class="flex justify-between items-center mb-4">
-                    <h3 class="text-sm font-bold text-gray-400 uppercase tracking-wider">成員管理</h3>
-                    <button @click="addMember" class="text-xs bg-black text-white px-4 py-1.5 rounded-full font-bold shadow-sm">+ 新增成員</button>
+            <section class="mb-10">
+                <div class="flex justify-between items-center mb-6 px-1">
+                    <h3 class="text-xs font-black text-gray-400 uppercase tracking-widest">Members</h3>
+                    <button @click="addMember" class="text-xs bg-black text-white px-4 py-2 rounded-full font-black">+ 新增</button>
                 </div>
-                <div v-for="(m, idx) in members" :key="m.id" class="member-row">
-                    <div class="w-8 h-8 bg-gray-50 rounded-full flex items-center justify-center text-[10px] font-black text-gray-300">{{idx+1}}</div>
-                    <input :id="'m-input-'+m.id" v-model="m.name" @blur="updateMember(m)" @keyup.enter="updateMember(m)" class="flex-1 outline-none font-bold bg-transparent">
-                    <button @click="deleteMember(m.id)" class="text-gray-200 hover:text-red-500 p-1">×</button>
+                <div class="space-y-3">
+                    <div v-for="(m, idx) in members" :key="m.id" class="flex items-center gap-4 p-4 bg-white border border-gray-100 rounded-[24px] shadow-sm">
+                        <div class="w-10 h-10 bg-gray-900 rounded-full flex items-center justify-center text-[10px] text-white font-black">{{idx+1}}</div>
+                        <input :id="'m-input-'+m.id" v-model="m.name" @blur="updateMember(m)" @keyup.enter="updateMember(m)" class="flex-1 outline-none font-bold text-lg bg-transparent">
+                        <button @click="deleteMember(m.id)" class="text-gray-200 hover:text-red-500 transition-colors"><i data-lucide="x-circle" class="w-5 h-5"></i></button>
+                    </div>
                 </div>
             </section>
 
             <section>
-                <h3 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4">帳務明細</h3>
-                <div v-for="exp in expenses" :key="exp.id" @click="openEditExpense(exp)" class="card p-5 mb-3 flex justify-between items-center active:scale-95">
+                <h3 class="text-xs font-black text-gray-400 uppercase tracking-widest mb-6 px-1">Expenses</h3>
+                <div v-for="exp in expenses" :key="exp.id" @click="openEditExpense(exp)" class="card p-5 mb-4 flex justify-between items-center active:scale-95 cursor-pointer">
                     <div class="flex items-center gap-4">
-                        <div class="w-12 h-12 bg-gray-50 rounded-2xl flex items-center justify-center text-gray-400"><i data-lucide="receipt-text" class="w-5 h-5"></i></div>
+                        <div class="w-14 h-14 bg-gray-50 rounded-2xl flex items-center justify-center text-gray-900 border border-gray-100"><i data-lucide="credit-card" class="w-6 h-6"></i></div>
                         <div>
-                            <h4 class="font-bold">{{ exp.title }}</h4>
-                            <p class="text-[10px] text-gray-400 uppercase">{{ exp.date }}</p>
+                            <h4 class="font-black text-lg">{{ exp.title }}</h4>
+                            <p class="text-[10px] text-gray-400 font-bold uppercase mt-0.5">{{ exp.date }}</p>
                         </div>
                     </div>
-                    <span class="font-black text-lg">${{ Number(exp.amount).toLocaleString() }}</span>
+                    <span class="font-black text-xl tracking-tighter">${{ Number(exp.amount).toLocaleString() }}</span>
                 </div>
             </section>
         </main>
 
-        <button @click="openAddExpense" class="fixed bottom-10 right-10 w-16 h-16 bg-black text-white rounded-full shadow-2xl flex items-center justify-center text-3xl z-30 active:scale-90 transition-all shadow-black/20">+</button>
+        <button @click="openAddExpense" class="fixed bottom-10 right-8 w-18 h-18 bg-black text-white rounded-[24px] shadow-2xl flex items-center justify-center z-30 active:scale-90 transition-all p-5">
+            <i data-lucide="plus" class="w-8 h-8"></i>
+        </button>
     </div>
 
-    <div v-if="showPassSettings" class="fixed inset-0 bg-black/40 backdrop-blur-sm z-[110] flex items-center justify-center p-6">
-        <div class="card p-8 w-full max-w-sm shadow-2xl">
-            <h3 class="text-xl font-bold mb-6">設定管理者密碼</h3>
-            <div class="space-y-4">
-                <div v-if="adminPass">
-                    <label class="text-[10px] font-bold text-gray-400 uppercase">舊密碼</label>
-                    <input v-model="passForm.old" type="password" maxlength="4" placeholder="••••" class="input-pill mt-1 text-center tracking-widest">
-                </div>
-                <div>
-                    <label class="text-[10px] font-bold text-gray-400 uppercase">新密碼 (4 位數)</label>
-                    <input v-model="passForm.new" type="password" maxlength="4" placeholder="••••" class="input-pill mt-1 text-center tracking-widest">
-                </div>
-                <div class="flex gap-3 pt-4">
-                    <button @click="showPassSettings=false" class="flex-1 btn-round bg-gray-100">取消</button>
-                    <button @click="saveAdminPass" class="flex-1 btn-round bg-black text-white">儲存設定</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div v-if="showModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 flex items-end sm:items-center justify-center">
-        <div class="bg-white w-full max-w-md h-[85vh] sm:h-auto rounded-t-[40px] sm:rounded-[40px] p-8 overflow-y-auto">
+    <div v-if="showModal" class="fixed inset-0 bg-black/60 backdrop-blur-md z-[150] flex items-end sm:items-center justify-center">
+        <div class="bg-white w-full max-w-md h-[90vh] sm:h-auto rounded-t-[40px] sm:rounded-[40px] p-8 overflow-y-auto animate-in slide-in-from-bottom duration-300">
             <div class="flex justify-between items-center mb-8">
-                <h3 class="text-2xl font-black">{{ isEditing ? '修改紀錄' : '新增帳務' }}</h3>
-                <button @click="showModal = false" class="p-2 bg-gray-100 rounded-full">×</button>
+                <h3 class="text-2xl font-black tracking-tight">{{ isEditing ? '修改帳目' : '新增帳目' }}</h3>
+                <button @click="showModal = false" class="w-10 h-10 bg-gray-50 rounded-full flex items-center justify-center font-bold">×</button>
             </div>
             
             <div class="space-y-6">
-                <input v-model="form.title" type="text" placeholder="描述（例如：晚餐）" class="input-pill font-bold">
-                <div class="flex gap-4">
-                    <input v-model.number="form.amount" type="number" placeholder="金額" class="flex-1 input-pill font-black text-lg">
-                    <input v-model="form.date" type="date" class="w-2/5 input-pill text-[10px] px-3">
+                <div class="space-y-2">
+                    <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">項目名稱與金額</label>
+                    <input v-model="form.title" type="text" placeholder="例如：居酒屋晚餐" class="input-pill text-lg">
+                    <div class="flex gap-3">
+                        <input v-model.number="form.amount" type="number" placeholder="金額" class="flex-1 input-pill text-2xl font-black">
+                        <input v-model="form.date" type="date" class="w-2/5 input-pill text-xs">
+                    </div>
                 </div>
 
-                <div class="space-y-3">
-                    <div class="flex justify-between items-center px-1">
-                        <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">誰參與分攤？</label>
-                        <button @click="toggleAllSplit" class="text-[10px] text-blue-600 font-bold bg-blue-50 px-2 py-1 rounded-md">全選/反選</button>
+                <div class="space-y-4">
+                    <div class="flex bg-gray-100 p-1.5 rounded-2xl">
+                        <button @click="form.sMode='equal'" :class="form.sMode==='equal' ? 'bg-white shadow-sm font-black' : 'text-gray-400 font-bold'" class="flex-1 py-2.5 rounded-xl text-xs transition-all">平均分攤</button>
+                        <button @click="form.sMode='manual'" :class="form.sMode==='manual' ? 'bg-white shadow-sm font-black' : 'text-gray-400 font-bold'" class="flex-1 py-2.5 rounded-xl text-xs transition-all">手動輸入</button>
                     </div>
-                    <div class="flex flex-wrap gap-2">
-                        <button v-for="m in members" :key="m.id" 
-                            @click="toggleMemberSplit(m.id)"
-                            :class="form.sList.includes(m.id) ? 'bg-black text-white border-black' : 'bg-gray-100 text-gray-400 border-transparent'"
-                            class="px-5 py-2.5 rounded-full text-xs font-bold transition-all border">
-                            {{m.name}}
-                        </button>
+
+                    <div v-if="form.sMode==='equal'" class="space-y-4">
+                        <div class="flex justify-between items-center">
+                            <span class="text-[10px] font-black text-gray-400 uppercase tracking-widest">選擇參與成員</span>
+                            <button @click="toggleAllSplit" class="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-lg">全選/清除</button>
+                        </div>
+                        <div class="flex flex-wrap gap-2">
+                            <button v-for="m in members" :key="m.id" 
+                                @click="toggleMemberSplit(m.id)"
+                                :class="form.sList.includes(m.id) ? 'bg-black text-white border-black' : 'bg-gray-50 text-gray-400 border-transparent'"
+                                class="px-5 py-3 rounded-2xl text-sm font-bold transition-all border shadow-sm">
+                                {{m.name}}
+                            </button>
+                        </div>
                     </div>
-                    <p v-if="form.sList.length > 0" class="text-center text-[10px] text-gray-400">平均每人負擔: ${{ Math.round(form.amount / form.sList.length) || 0 }}</p>
+
+                    <div v-if="form.sMode==='manual'" class="space-y-3">
+                        <div v-for="m in members" :key="m.id" class="flex justify-between items-center p-4 bg-gray-50 rounded-2xl">
+                            <span class="font-bold">{{m.name}}</span>
+                            <input v-model.number="form.manualS[m.id]" type="number" placeholder="0" class="w-24 bg-transparent border-b-2 border-gray-200 text-right font-black outline-none focus:border-black">
+                        </div>
+                        <div class="flex justify-between items-center px-2 py-1">
+                            <span class="text-xs font-bold text-gray-400">總計：${{ currentManualSum }} / ${{ form.amount }}</span>
+                            <span v-if="manualSumCheck" class="text-green-500 text-xs font-black">✓ 金額正確</span>
+                            <span v-else class="text-red-500 text-xs font-black">× 金額不符</span>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="flex gap-3 pt-6">
-                    <button v-if="isEditing" @click="deleteExpense" class="btn-round bg-red-50 text-red-500 px-6 font-bold">刪除</button>
-                    <button @click="submitExpense" :disabled="!isValid" class="flex-1 btn-round bg-black text-white shadow-xl shadow-black/10">完成並儲存</button>
+                    <button v-if="isEditing" @click="deleteExpense" class="btn-round bg-red-50 text-red-500 px-8">刪除</button>
+                    <button @click="submitExpense" :disabled="!isValid" class="flex-1 btn-round bg-black text-white shadow-2xl shadow-black/20 disabled:opacity-20">儲存帳目</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <div v-if="showSettlement" class="fixed inset-0 bg-white z-[60] flex flex-col p-8">
+    <div v-if="showSettlement" class="fixed inset-0 bg-white z-[160] flex flex-col p-8 overflow-y-auto animate-in fade-in zoom-in-95 duration-300">
         <header class="flex justify-between items-center mb-12">
-            <h2 class="text-3xl font-black tracking-tighter">結算報告</h2>
-            <button @click="showSettlement=false" class="p-2 bg-gray-100 rounded-full">×</button>
+            <h2 class="text-4xl font-black tracking-tighter">Report.</h2>
+            <button @click="showSettlement=false" class="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center font-bold">×</button>
         </header>
-        <div class="space-y-8 flex-1 overflow-y-auto">
+
+        <div class="space-y-12">
             <section>
-                <h4 class="text-[10px] font-bold text-gray-300 uppercase mb-4 tracking-widest">個人平衡表</h4>
-                <div v-for="s in settlement.details" class="flex justify-between items-center py-4 border-b border-gray-50">
-                    <span class="font-bold text-lg">{{s.name}}</span>
-                    <div class="text-right">
-                        <p class="font-black text-xl" :class="s.net >= 0 ? 'text-green-500' : 'text-red-500'">
-                            {{ s.net >= 0 ? '應收' : '應付' }} ${{ Math.abs(Math.round(s.net)) }}
-                        </p>
+                <h4 class="text-[10px] font-black text-gray-300 uppercase mb-6 tracking-[0.2em]">最佳轉帳路徑</h4>
+                <div v-for="t in settlement.transfers" class="card p-6 mb-4 flex justify-between items-center border-none bg-gray-50/80">
+                    <div class="flex items-center gap-3">
+                        <span class="font-black text-lg">{{t.from}}</span>
+                        <i data-lucide="arrow-right" class="w-4 h-4 text-gray-300"></i>
+                        <span class="font-black text-lg">{{t.to}}</span>
                     </div>
+                    <span class="text-3xl font-black tracking-tighter">${{Math.round(t.amount)}}</span>
                 </div>
+                <div v-if="settlement.transfers.length === 0" class="text-center py-10 text-gray-300 font-bold italic">目前帳務平衡，不需轉帳</div>
             </section>
+
             <section>
-                <h4 class="text-[10px] font-bold text-gray-300 uppercase mb-4 tracking-widest">建議轉帳路徑</h4>
-                <div v-for="t in settlement.transfers" class="card p-6 mb-3 flex justify-between items-center border-none bg-gray-50/50">
-                    <div class="flex items-center gap-2 font-bold text-sm">
-                        <span>{{t.from}}</span> <i data-lucide="arrow-right" class="w-4 h-4 text-gray-300"></i> <span>{{t.to}}</span>
+                <h4 class="text-[10px] font-black text-gray-300 uppercase mb-6 tracking-[0.2em]">個人應負擔總額</h4>
+                <div class="space-y-4">
+                    <div v-for="s in settlement.details" class="flex justify-between items-center py-5 border-b border-gray-100">
+                        <div>
+                            <span class="font-black text-xl">{{s.name}}</span>
+                            <p class="text-[10px] font-bold uppercase tracking-wider" :class="s.net >= 0 ? 'text-green-500' : 'text-red-500'">
+                                {{ s.net >= 0 ? '應收回' : '應支付' }} ${{ Math.abs(Math.round(s.net)) }}
+                            </p>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-xs font-bold text-gray-400">總消費</span>
+                            <p class="font-black text-2xl tracking-tighter">${{ Math.round(s.spent) }}</p>
+                        </div>
                     </div>
-                    <span class="text-2xl font-black text-black">${{Math.round(t.amount)}}</span>
                 </div>
-                <div v-if="settlement.transfers.length === 0" class="text-center py-10 text-gray-300">目前帳務完全平衡</div>
             </section>
         </div>
     </div>
@@ -218,7 +238,6 @@
 </div>
 
 <script>
-    // --- 已填入你的專案資訊 ---
     const SB_URL = 'https://kwrefnmhjuwnvfipxdyq.supabase.co';
     const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt3cmVmbm1oanV3bnZmaXB4ZHlxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEyOTQ4NTksImV4cCI6MjA4Njg3MDg1OX0.jthw2efO6SSzIm0PpY0scQ9cBrAtByEzxxrzz1YOHlc';
     const client = supabase.createClient(SB_URL, SB_KEY);
@@ -233,34 +252,30 @@
             const expenses = ref([]);
             const showModal = ref(false);
             const showSettlement = ref(false);
-            const showPassSettings = ref(false);
             const isEditing = ref(false);
             const editingId = ref(null);
             
+            // PIN & Password
             const adminPass = ref(null);
             const isLocked = ref(false);
+            const showPassSettings = ref(false);
             const pin = ref('');
-            const passForm = ref({ old: '', new: '' });
-            const newProjectTitle = ref('');
+            const oldPinInput = ref(''); // 用於修改密碼驗證
+            const isSettingNew = ref(false);
 
-            const form = ref({ title: '', amount: '', date: '', pMode: 'single', singleP: '', sMode: 'equal', sList: [] });
+            const newProjectTitle = ref('');
+            const form = ref({ title: '', amount: '', date: '', pMode: 'single', singleP: '', sMode: 'equal', sList: [], manualS: {} });
 
             onMounted(async () => {
-                try {
-                    const { data, error } = await client.from('app_settings').select('value').eq('id', 'admin_password').single();
-                    if (!error) adminPass.value = data?.value;
-                } catch (e) {
-                    console.log("提示：尚未建立 app_settings 資料表，密碼功能將暫緩。");
-                }
-                
+                const { data } = await client.from('app_settings').select('value').eq('id', 'admin_password').single();
+                adminPass.value = data?.value;
                 const pid = new URLSearchParams(window.location.search).get('pid');
-                if (pid) enterProject(pid);
-                else fetchProjects();
+                if (pid) enterProject(pid); else fetchProjects();
                 refreshIcons();
             });
 
             const refreshIcons = () => nextTick(() => lucide.createIcons());
-            watch([projects, members, expenses, showModal, showSettlement, isLocked], refreshIcons);
+            watch([projects, members, expenses, showModal, showSettlement, isLocked, showPassSettings], refreshIcons);
 
             async function fetchProjects() {
                 const { data } = await client.from('projects').select('*').order('created_at', { ascending: false });
@@ -269,10 +284,8 @@
 
             async function createProject() {
                 if (!newProjectTitle.value) return;
-                const { data, error } = await client.from('projects').insert({ name: newProjectTitle.value }).select().single();
-                if (error) return alert("建立失敗，請檢查資料庫表是否存在。");
-                newProjectTitle.value = '';
-                enterProject(data.id);
+                const { data } = await client.from('projects').insert({ name: newProjectTitle.value }).select().single();
+                newProjectTitle.value = ''; enterProject(data.id);
             }
 
             async function enterProject(id) {
@@ -285,85 +298,85 @@
                 const { data: p } = await client.from('projects').select('*').eq('id', currentProjectId.value).single();
                 projectMeta.value = p || {};
                 const { data: m } = await client.from('members').select('*').eq('project_id', currentProjectId.value).order('id');
-                members.value = (m || []);
+                members.value = m || [];
                 const { data: e } = await client.from('expenses').select('*').eq('project_id', currentProjectId.value).order('date', {ascending: false});
                 expenses.value = e || [];
             }
 
-            function backToHome() {
-                if (adminPass.value) {
-                    isLocked.value = true;
-                    pin.value = '';
-                } else {
-                    currentProjectId.value = null;
-                    window.history.pushState({}, '', window.location.pathname);
-                    fetchProjects();
+            // PIN 邏輯
+            const pinContext = computed(() => {
+                if (isLocked.value) return { title: '管理員解鎖', sub: '請輸入 4 位數解鎖密碼' };
+                if (showPassSettings.value) {
+                    if (!adminPass.value || isSettingNew.value) return { title: '設定密碼', sub: '請設定新的 4 位數密碼' };
+                    return { title: '密碼變更', sub: '請輸入原有的密碼以驗證' };
                 }
-            }
+                return { title: '', sub: '' };
+            });
 
             function pressPin(n) {
                 if (pin.value.length < 4) pin.value += n;
-                if (pin.value.length === 4) {
+                if (pin.value.length === 4) handlePinComplete();
+            }
+
+            async function handlePinComplete() {
+                if (isLocked.value) {
                     if (pin.value === adminPass.value) {
-                        isLocked.value = false;
-                        currentProjectId.value = null;
+                        isLocked.value = false; currentProjectId.value = null; pin.value = '';
                         window.history.pushState({}, '', window.location.pathname);
                         fetchProjects();
+                    } else { alert('密碼錯誤'); pin.value = ''; }
+                } else if (showPassSettings.value) {
+                    if (!adminPass.value || isSettingNew.value) {
+                        await client.from('app_settings').upsert({ id: 'admin_password', value: pin.value });
+                        adminPass.value = pin.value;
+                        showPassSettings.value = false; isSettingNew.value = false; pin.value = '';
+                        alert('密碼設定成功');
                     } else {
-                        alert('密碼錯誤');
-                        pin.value = '';
+                        if (pin.value === adminPass.value) { isSettingNew.value = true; pin.value = ''; }
+                        else { alert('原密碼錯誤'); pin.value = ''; }
                     }
                 }
             }
 
-            async function saveAdminPass() {
-                if (adminPass.value && passForm.value.old !== adminPass.value) return alert('原密碼錯誤');
-                if (passForm.value.new.length !== 4) return alert('請輸入 4 位數字');
-                const { error } = await client.from('app_settings').upsert({ id: 'admin_password', value: passForm.value.new });
-                if (error) return alert("儲存失敗，請確保 SQL 已執行建立 app_settings 表。");
-                adminPass.value = passForm.value.new;
-                showPassSettings.value = false;
-                passForm.value = { old: '', new: '' };
-                alert('密碼設定成功');
-            }
+            const triggerPassSetup = () => { pin.value = ''; showPassSettings.value = true; };
+            const backToHome = () => { if (adminPass.value) { isLocked.value = true; pin.value = ''; } else { currentProjectId.value = null; } };
+            const closePinPad = () => { isLocked.value = false; showPassSettings.value = false; isSettingNew.value = false; pin.value = ''; };
 
-            async function addMember() {
-                const name = `新成員 ${members.value.length + 1}`;
-                const { data } = await client.from('members').insert({ project_id: currentProjectId.value, name }).select().single();
-                await loadData();
-                nextTick(() => {
-                    const el = document.getElementById('m-input-' + data.id);
-                    if (el) el.focus();
-                });
-            }
-
-            async function updateMember(m) {
-                await client.from('members').update({name: m.name}).eq('id', m.id);
-            }
-
-            async function deleteMember(id) {
-                if(confirm('確定要刪除成員嗎？相關帳務也會受影響。')) { await client.from('members').delete().eq('id', id); loadData(); }
-            }
-
+            // 帳務邏輯
             function openAddExpense() {
                 isEditing.value = false;
-                form.value = { title: '', amount: '', date: new Date().toISOString().split('T')[0], pMode: 'single', singleP: members.value[0]?.id, sMode: 'equal', sList: members.value.map(m=>m.id) };
+                form.value = { title: '', amount: '', date: new Date().toISOString().split('T')[0], pMode: 'single', singleP: members.value[0]?.id, sMode: 'equal', sList: members.value.map(m=>m.id), manualS: {} };
+                members.value.forEach(m => form.value.manualS[m.id] = '');
                 showModal.value = true;
             }
 
             function openEditExpense(e) {
-                isEditing.value = true;
-                editingId.value = e.id;
+                isEditing.value = true; editingId.value = e.id;
                 const pKeys = Object.keys(e.payers);
                 const sKeys = Object.keys(e.split_details);
-                form.value = { title: e.title, amount: e.amount, date: e.date, pMode: 'single', singleP: pKeys[0], sMode: 'equal', sList: sKeys.map(Number) };
+                // 判斷是平均還是手動
+                const values = Object.values(e.split_details);
+                const isEq = values.every(v => v === values[0]);
+                form.value = { 
+                    title: e.title, amount: e.amount, date: e.date, 
+                    pMode: 'single', singleP: pKeys[0], 
+                    sMode: isEq ? 'equal' : 'manual', 
+                    sList: sKeys.map(Number),
+                    manualS: {...e.split_details}
+                };
                 showModal.value = true;
             }
 
+            const currentManualSum = computed(() => Object.values(form.value.manualS).reduce((a,b)=>a+(Number(b)||0), 0));
+            const manualSumCheck = computed(() => Math.abs(currentManualSum.value - form.value.amount) < 0.1);
+            const isValid = computed(() => {
+                if (!form.value.title || form.value.amount <= 0) return false;
+                return form.value.sMode === 'equal' ? form.value.sList.length > 0 : manualSumCheck.value;
+            });
+
             function toggleMemberSplit(id) {
                 const idx = form.value.sList.indexOf(id);
-                if (idx > -1) form.value.sList.splice(idx, 1);
-                else form.value.sList.push(id);
+                if (idx > -1) form.value.sList.splice(idx, 1); else form.value.sList.push(id);
             }
 
             function toggleAllSplit() {
@@ -372,11 +385,12 @@
             }
 
             async function submitExpense() {
-                if (form.value.sList.length === 0) return alert("請至少選擇一位分攤成員");
                 let p = {}, s = {};
                 p[form.value.singleP] = form.value.amount;
-                const avg = form.value.amount / form.value.sList.length;
-                form.value.sList.forEach(id => s[id] = avg);
+                if (form.value.sMode === 'equal') {
+                    const avg = form.value.amount / form.value.sList.length;
+                    form.value.sList.forEach(id => s[id] = avg);
+                } else { s = form.value.manualS; }
 
                 const data = { project_id: currentProjectId.value, title: form.value.title, amount: form.value.amount, date: form.value.date, payers: p, split_details: s };
                 if(isEditing.value) await client.from('expenses').update(data).eq('id', editingId.value);
@@ -384,27 +398,21 @@
                 showModal.value = false; loadData();
             }
 
-            async function deleteExpense() { if(confirm('確定刪除此筆帳務？')) { await client.from('expenses').delete().eq('id', editingId.value); showModal.value=false; loadData(); } }
-
-            function copyLink() {
-                navigator.clipboard.writeText(window.location.href);
-                const toast = document.getElementById('toast');
-                toast.classList.add('toast-show');
-                setTimeout(() => toast.classList.remove('toast-show'), 2000);
+            async function deleteExpense() { if(confirm('確定刪除？')) { await client.from('expenses').delete().eq('id', editingId.value); showModal.value=false; loadData(); } }
+            async function addMember() {
+                const { data } = await client.from('members').insert({ project_id: currentProjectId.value, name: `成員 ${members.value.length + 1}` }).select().single();
+                await loadData(); nextTick(() => document.getElementById('m-input-' + data.id)?.focus());
             }
-
-            async function editProject(p) {
-                const n = prompt('修改專案名稱', p.name);
-                if (n) { await client.from('projects').update({name: n}).eq('id', p.id); fetchProjects(); }
-            }
-
-            async function deleteProject(id) {
-                if (confirm('確定刪除整個專案？此動作不可撤銷。')) { await client.from('projects').delete().eq('id', id); fetchProjects(); }
-            }
-
+            async function updateMember(m) { await client.from('members').update({name: m.name}).eq('id', m.id); }
+            async function deleteMember(id) { if(confirm('確定刪除成員？')) { await client.from('members').delete().eq('id', id); loadData(); } }
+            
             const totalExpense = computed(() => expenses.value.reduce((a,b)=>a+Number(b.amount),0));
-            const isValid = computed(() => form.value.title && form.value.amount > 0 && form.value.sList.length > 0);
             const formatDate = (s) => new Date(s).toLocaleDateString();
+            const copyLink = () => { 
+                navigator.clipboard.writeText(window.location.href); 
+                document.getElementById('toast').classList.add('toast-show');
+                setTimeout(() => document.getElementById('toast').classList.remove('toast-show'), 2000);
+            };
 
             const settlement = computed(() => {
                 let b = {}; let sp = {}; members.value.forEach(m => { b[m.id]=0; sp[m.id]=0; });
@@ -425,7 +433,7 @@
                 return { details, transfers: ts };
             });
 
-            return { currentProjectId, projects, projectMeta, members, expenses, showModal, showSettlement, isEditing, form, totalExpense, isValid, settlement, isLocked, pin, adminPass, showPassSettings, passForm, newProjectTitle, formatDate, createProject, enterProject, backToHome, pressPin, saveAdminPass, addMember, updateMember, deleteMember, openAddExpense, openEditExpense, toggleMemberSplit, toggleAllSplit, submitExpense, deleteExpense, copyLink, editProject, deleteProject };
+            return { currentProjectId, projects, projectMeta, members, expenses, showModal, showSettlement, isEditing, form, totalExpense, isValid, settlement, isLocked, pin, pinContext, adminPass, showPassSettings, newProjectTitle, currentManualSum, manualSumCheck, formatDate, createProject, enterProject, backToHome, pressPin, closePinPad, triggerPassSetup, addMember, updateMember, deleteMember, openAddExpense, openEditExpense, toggleMemberSplit, toggleAllSplit, submitExpense, deleteExpense, copyLink };
         }
     }).mount('#app');
 </script>
