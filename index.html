@@ -126,7 +126,7 @@
                     <div>
                         <div class="flex justify-between items-center mb-4"><span class="text-[10px] text-gray-500 uppercase f-medium">誰付款？</span><button @click="form.pMode = form.pMode==='equal'?'manual':'equal'" class="text-[10px] bg-white/5 text-gray-400 px-4 py-1.5 rounded-full">{{ form.pMode==='equal' ? '平均' : '手動' }}</button></div>
                         <div v-if="form.pMode==='equal'" class="flex flex-wrap gap-2">
-                            <button v-for="m in members" @click="toggleMemberPay(m.id)" :class="form.pList.map(String).includes(String(m.id))?'bg-blue-500/20 text-blue-200 border-blue-400/20':'bg-white/5 text-gray-500'" class="px-5 py-2.5 rounded-2xl text-xs f-medium border border-transparent transition-all">{{m.name}}</button>
+                            <button v-for="m in members" @click="toggleMemberPay(m.id)" :class="form.pList.includes(m.id)?'bg-blue-500/20 text-blue-200 border-blue-400/20':'bg-white/5 text-gray-500'" class="px-5 py-2.5 rounded-2xl text-xs f-medium border border-transparent">{{m.name}}</button>
                         </div>
                         <div v-else class="space-y-3">
                             <div v-for="m in members" class="flex justify-between items-center p-3 bg-white/5 rounded-2xl">
@@ -139,7 +139,7 @@
                     <div>
                         <div class="flex justify-between items-center mb-4"><span class="text-[10px] text-gray-500 uppercase f-medium">誰分攤？</span><div class="flex gap-2"><button v-if="form.sMode==='equal'" @click="toggleAllSplit" class="text-[10px] text-gray-400 f-medium mr-2">全選</button><button @click="form.sMode = form.sMode==='equal'?'manual':'equal'" class="text-[10px] bg-white/5 text-gray-400 px-4 py-1.5 rounded-full">{{ form.sMode==='equal' ? '平均' : '手動' }}</button></div></div>
                         <div v-if="form.sMode==='equal'" class="flex flex-wrap gap-2">
-                            <button v-for="m in members" @click="toggleMemberSplit(m.id)" :class="form.sList.map(String).includes(String(m.id))?'bg-blue-500/20 text-blue-200 border-blue-400/20':'bg-white/5 text-gray-500'" class="px-5 py-2.5 rounded-2xl text-xs f-medium border border-transparent transition-all">{{m.name}}</button>
+                            <button v-for="m in members" @click="toggleMemberSplit(m.id)" :class="form.sList.includes(m.id)?'bg-blue-500/20 text-blue-200 border-blue-400/20':'bg-white/5 text-gray-500'" class="px-5 py-2.5 rounded-2xl text-xs f-medium border border-transparent">{{m.name}}</button>
                         </div>
                         <div v-else class="space-y-3">
                             <div v-for="m in members" class="flex justify-between items-center p-3 bg-white/5 rounded-2xl">
@@ -224,7 +224,6 @@
                 await client.from('members').insert({ project_id: currentProjectId.value, name: `成員${i}` }); await loadData();
             }
             async function updateMember(m) { await client.from('members').update({name: m.name}).eq('id', m.id); }
-
             async function deleteMember(id) { 
                 if (confirm('確定刪除成員？該成員在花費中的紀錄也會被清理。')) { 
                     const sid = String(id); const updates = [];
@@ -246,15 +245,30 @@
                 showModal.value = true;
             }
 
+            // 🛠️ 模式還原修復核心
             function openEditExpense(e) {
                 isEditing.value = true; editingExpenseId.value = e.id;
-                // 核心修復：從 JSON 物件提取 ID 並同時兼容平均模式的顯示
-                const activePayers = Object.keys(e.payers).filter(id => members.value.some(m => String(m.id) === String(id)) && Number(e.payers[id]) > 0.01);
-                const activeSplitters = Object.keys(e.split_details).filter(id => members.value.some(m => String(m.id) === String(id)) && Number(e.split_details[id]) > 0.01);
                 
-                // 預設為手動，但 pList 和 sList 會提供給平均模式切換時使用
-                form.value = { title: e.title, amount: e.amount, date: e.date, pMode: 'manual', pList: activePayers, manualP: {...e.payers}, sMode: 'manual', sList: activeSplitters, manualS: {...e.split_details} };
-                members.value.forEach(m => { if (form.value.manualP[m.id] === undefined) form.value.manualP[m.id] = 0; if (form.value.manualS[m.id] === undefined) form.value.manualS[m.id] = 0; });
+                // 1. 取得有金額的人員 ID (轉為數字型態)
+                const activePayers = Object.keys(e.payers).filter(id => Number(e.payers[id]) > 0.01).map(Number);
+                const activeSplitters = Object.keys(e.split_details).filter(id => Number(e.split_details[id]) > 0.01).map(Number);
+                
+                // 2. 模式判定邏輯：如果所有 active 成員的金額差異極小，判定為平均模式
+                const pVals = activePayers.map(id => Number(e.payers[id]));
+                const sVals = activeSplitters.map(id => Number(e.split_details[id]));
+                const isPManual = pVals.length > 1 ? !pVals.every(v => Math.abs(v - pVals[0]) < 0.2) : false;
+                const isSManual = sVals.length > 1 ? !sVals.every(v => Math.abs(v - sVals[0]) < 0.2) : false;
+
+                form.value = {
+                    title: e.title, amount: e.amount, date: e.date,
+                    pMode: isPManual ? 'manual' : 'equal', pList: activePayers, manualP: {...e.payers},
+                    sMode: isSManual ? 'manual' : 'equal', sList: activeSplitters, manualS: {...e.split_details}
+                };
+
+                members.value.forEach(m => {
+                    if (form.value.manualP[m.id] === undefined) form.value.manualP[m.id] = 0;
+                    if (form.value.manualS[m.id] === undefined) form.value.manualS[m.id] = 0;
+                });
                 showModal.value = true;
             }
 
@@ -294,18 +308,8 @@
             const backToHome = () => { if (adminPass.value) { isLocked.value = true; pin.value = ''; } else { currentProjectId.value = null; fetchProjects(); } };
             const closePinPad = () => { isLocked.value = false; showPassSettings.value = false; pin.value = ''; };
             const triggerPassSetup = () => { pin.value = ''; showPassSettings.value = true; };
-            
-            // 點擊切換邏輯
-            function toggleMemberPay(id) { 
-                const sid = String(id); 
-                const idx = form.value.pList.map(String).indexOf(sid);
-                if (idx > -1) form.value.pList.splice(idx, 1); else form.value.pList.push(id);
-            }
-            function toggleMemberSplit(id) { 
-                const sid = String(id); 
-                const idx = form.value.sList.map(String).indexOf(sid);
-                if (idx > -1) form.value.sList.splice(idx, 1); else form.value.sList.push(id);
-            }
+            function toggleMemberPay(id) { const i = form.value.pList.indexOf(id); if (i > -1) form.value.pList.splice(i, 1); else form.value.pList.push(id); }
+            function toggleMemberSplit(id) { const i = form.value.sList.indexOf(id); if (i > -1) form.value.sList.splice(i, 1); else form.value.sList.push(id); }
             function toggleAllSplit() { if (form.value.sList.length === members.value.length) form.value.sList = []; else form.value.sList = members.value.map(m => m.id); }
             function copyLink() { navigator.clipboard.writeText(window.location.href); showToast.value = true; setTimeout(() => showToast.value = false, 2000); }
 
