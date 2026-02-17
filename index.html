@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Split. 極簡分帳 3.0</title>
+    <title>Split. 極簡分帳 4.0</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
@@ -13,20 +13,24 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@100;300;400;500&display=swap');
         
+        /* 全域防滑動 */
+        html, body { 
+            overflow-x: hidden; 
+            background-color: #FAFAFA;
+        }
+
         body { 
-            background-color: #FAFAFA; 
             color: #1A1A1A; 
             font-family: 'Noto Sans TC', sans-serif; 
-            overflow-x: hidden;
-            width: 100vw;
             display: flex;
             justify-content: center;
         }
 
-        /* 窄版容器，防止移動 */
+        /* 5️⃣ 整體畫面窄版化 (iPhone Pro 寬度) */
         #app {
             width: 100%;
-            max-width: 360px; /* 縮窄寬度 */
+            max-width: 390px; 
+            margin: 0 auto;
             min-height: 100vh;
             background: white;
             box-shadow: 0 0 50px rgba(0,0,0,0.02);
@@ -42,8 +46,10 @@
 
         .card { @apply bg-white border border-gray-50 rounded-[24px] shadow-sm; }
         
-        /* 加大的 PIN Pad */
-        .pin-btn { @apply w-16 h-16 rounded-full bg-gray-50 flex items-center justify-center text-2xl f-light active:bg-gray-200 transition-all; }
+        /* 2️⃣ 管理員密碼數字鍵盤放大 (改為 rounded-2xl & 3xl 字體) */
+        .pin-btn { 
+            @apply w-20 h-20 rounded-2xl bg-gray-50 flex items-center justify-center text-3xl f-light active:bg-gray-200 transition-all; 
+        }
 
         .input-base { @apply w-full bg-gray-50 border-none rounded-xl px-4 py-3 outline-none f-light focus:bg-gray-100 transition-all; }
         
@@ -57,35 +63,36 @@
     <div v-if="isLocked || showPassSettings" class="fixed inset-0 bg-white z-[500] flex flex-col items-center justify-center p-6">
         <h2 class="text-sm mb-12 f-light tracking-[0.3em] text-gray-400 uppercase">{{ pinContext.title }}</h2>
         <div class="flex gap-4 mb-16">
-            <div v-for="i in 4" class="w-10 h-10 border-b flex items-center justify-center transition-all" :class="pin.length >= i ? 'border-black' : 'border-gray-200'">
-                <span v-if="pin.length >= i" class="text-2xl mt-1">*</span>
+            <div v-for="i in 4" class="w-12 h-12 border-b-2 flex items-center justify-center transition-all" :class="pin.length >= i ? 'border-black' : 'border-gray-200'">
+                <span v-if="pin.length >= i" class="text-3xl mt-1">*</span>
             </div>
         </div>
         <div class="grid grid-cols-3 gap-6">
             <button v-for="n in 9" @click="pressPin(n)" class="pin-btn">{{n}}</button>
-            <button @click="pin=''" class="text-xs text-gray-400">CLR</button>
+            <button @click="pin=''" class="text-xs text-gray-400 font-bold uppercase">Clr</button>
             <button @click="pressPin(0)" class="pin-btn">0</button>
-            <button @click="closePinPad" class="text-xs text-black">ESC</button>
+            <button @click="closePinPad" class="text-xs text-black font-bold uppercase">Esc</button>
         </div>
     </div>
 
     <div v-if="!currentProjectId" class="flex flex-col pt-10 animate-in fade-in">
         <header class="flex justify-between items-center mb-12 px-1">
             <h1 class="text-3xl f-thin tracking-tighter">Split.</h1>
-            <button @click="triggerPassSetup" class="p-2 text-gray-300"><i data-lucide="shield"></i></button>
+            <button @click="triggerPassSetup" class="p-2 text-gray-300"><i data-lucide="shield-check"></i></button>
         </header>
 
-        <div class="flex gap-2 mb-10 px-1">
+        <div class="flex flex-col gap-4 mb-12 px-1 items-center">
             <input v-model="newProjectTitle" type="text" placeholder="行程名稱..." 
                    @keyup.enter="createProject"
-                   class="input-base flex-1">
+                   class="input-base w-full shadow-sm">
             <button @click="createProject" 
-                    class="w-12 h-12 bg-black text-white rounded-xl flex items-center justify-center active:scale-90 transition-all">
-                <i data-lucide="plus" class="w-6 h-6"></i>
+                    class="w-full py-4 bg-black text-white rounded-2xl flex items-center justify-center gap-2 active:scale-95 transition-all shadow-md">
+                <i data-lucide="plus" class="w-5 h-5"></i>
+                <span class="text-sm tracking-wide f-medium">建立專案</span>
             </button>
         </div>
 
-        <div class="space-y-4">
+        <div class="space-y-4 px-1">
             <div v-for="p in projects" :key="p.id" @click="enterProject(p.id)" class="card p-5 flex justify-between items-center active:bg-gray-50 transition-colors">
                 <div class="flex-1 overflow-hidden mr-2">
                     <div v-if="editingProjectId === p.id" @click.stop class="space-y-2">
@@ -97,12 +104,12 @@
                     </div>
                     <div v-else>
                         <span class="text-lg f-light truncate block">{{ p.name }}</span>
-                        <span class="text-[10px] text-gray-400 uppercase tracking-wider">{{ formatDate(p.created_at) }}</span>
+                        <span class="text-[9px] text-gray-400 uppercase tracking-widest">{{ formatDate(p.created_at) }}</span>
                     </div>
                 </div>
                 <div class="flex gap-1">
-                    <button @click.stop="startEditProject(p)" class="p-2 text-gray-200"><i data-lucide="edit-2" class="w-4 h-4"></i></button>
-                    <button @click.stop="deleteProject(p.id)" class="p-2 text-gray-200 hover:text-red-300"><i data-lucide="trash" class="w-4 h-4"></i></button>
+                    <button @click.stop="startEditProject(p)" class="p-2 text-gray-200"><i data-lucide="edit-3" class="w-4 h-4"></i></button>
+                    <button @click.stop="deleteProject(p.id)" class="p-2 text-gray-200 hover:text-red-400"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
                 </div>
             </div>
         </div>
@@ -112,34 +119,42 @@
         <header class="py-5 flex justify-between items-center bg-white border-b border-gray-50 sticky top-0 z-50">
             <button @click="backToHome" class="p-2 text-gray-800"><i data-lucide="chevron-left" class="w-6 h-6"></i></button>
             <h2 class="f-medium text-[10px] tracking-[0.2em] uppercase truncate max-w-[150px]">{{ projectMeta.name }}</h2>
-            <button @click="copyLink" class="p-2 text-gray-300"><i data-lucide="link" class="w-4 h-4"></i></button>
+            <button @click="copyLink" class="p-2 text-gray-300"><i data-lucide="share" class="w-4 h-4"></i></button>
         </header>
 
-        <main class="flex-1 overflow-y-auto pt-6 pb-28">
-            <div class="text-center mb-10">
+        <main class="flex-1 overflow-y-auto pt-8 pb-32">
+            <div class="text-center mb-12">
                 <p class="text-[9px] text-gray-400 tracking-[0.3em] uppercase mb-1">Total Expenses</p>
                 <h3 class="text-4xl f-thin tracking-tighter">${{ totalExpense.toLocaleString() }}</h3>
-                <button @click="showSettlement = true" class="mt-4 text-[9px] tracking-widest border border-gray-100 px-6 py-2 rounded-full text-gray-400">SETTLEMENT</button>
+                
+                <div class="mt-8 space-y-2 max-w-[200px] mx-auto">
+                    <div v-for="m in members" class="flex justify-between text-[11px] text-gray-500 border-b border-gray-50 pb-1">
+                        <span class="f-medium">{{m.name}}</span>
+                        <span class="f-light">${{ memberStats[m.id]?.toLocaleString() || 0 }}</span>
+                    </div>
+                </div>
+
+                <button @click="showSettlement = true" class="mt-10 text-[9px] tracking-[0.2em] border border-gray-100 px-8 py-2.5 rounded-full text-gray-400 hover:bg-black hover:text-white transition-all">SETTLEMENT REPORT</button>
             </div>
 
-            <section class="mb-10">
-                <div class="flex justify-between items-center mb-4">
+            <section class="mb-12">
+                <div class="flex justify-between items-center mb-5">
                     <h3 class="text-[9px] text-gray-300 tracking-widest uppercase">Members</h3>
-                    <button @click="addMember" class="text-[10px] text-blue-500">+ Add</button>
+                    <button @click="addMember" class="text-[10px] text-blue-500 font-medium">+ Add New</button>
                 </div>
                 <div class="space-y-2">
                     <div v-for="m in members" :key="m.id" class="flex items-center gap-3 p-4 bg-gray-50/50 rounded-2xl border border-gray-50">
-                        <input :id="'m-input-'+m.id" v-model="m.name" @blur="updateMember(m)" @keyup.enter="updateMember(m)" class="flex-1 bg-transparent outline-none text-sm">
-                        <button @click="deleteMember(m.id)" class="text-gray-200"><i data-lucide="minus" class="w-3 h-3"></i></button>
+                        <input :id="'m-input-'+m.id" v-model="m.name" @blur="updateMember(m)" @keyup.enter="updateMember(m)" class="flex-1 bg-transparent outline-none text-sm f-light">
+                        <button @click="deleteMember(m.id)" class="text-gray-200 hover:text-red-300"><i data-lucide="user-minus" class="w-3 h-3"></i></button>
                     </div>
                 </div>
             </section>
 
             <section>
-                <h3 class="text-[9px] text-gray-300 tracking-widest uppercase mb-4">Activity</h3>
-                <div v-for="exp in expenses" :key="exp.id" @click="openEditExpense(exp)" class="card p-5 mb-3 flex justify-between items-center">
+                <h3 class="text-[9px] text-gray-300 tracking-widest uppercase mb-5">Expense Records</h3>
+                <div v-for="exp in expenses" :key="exp.id" @click="openEditExpense(exp)" class="card p-5 mb-4 flex justify-between items-center active:scale-[0.98] transition-all">
                     <div class="flex-1 truncate pr-3">
-                        <p class="text-sm mb-0.5 truncate">{{ exp.title }}</p>
+                        <p class="text-sm f-light mb-0.5 truncate">{{ exp.title }}</p>
                         <p class="text-[9px] text-gray-400">{{ exp.date }}</p>
                     </div>
                     <span class="f-medium text-base tracking-tight">${{ Number(exp.amount).toLocaleString() }}</span>
@@ -147,80 +162,86 @@
             </section>
         </main>
 
-        <button @click="openAddExpense" class="fixed bottom-8 right-8 w-14 h-14 bg-black text-white rounded-2xl shadow-xl flex items-center justify-center z-40 active:scale-90 transition-all"><i data-lucide="plus"></i></button>
+        <button @click="openAddExpense" class="fixed bottom-8 right-8 w-14 h-14 bg-black text-white rounded-2xl shadow-xl flex items-center justify-center z-40 active:scale-90 transition-all"><i data-lucide="plus" class="w-7 h-7"></i></button>
     </div>
 
     <div v-if="showModal" class="fixed inset-0 bg-black/40 backdrop-blur-sm z-[200] flex items-end justify-center">
-        <div class="bg-white w-full max-w-[360px] h-[85vh] rounded-t-[32px] p-6 overflow-y-auto">
+        <div class="bg-white w-full max-w-[390px] h-[88vh] rounded-t-[32px] p-7 overflow-y-auto animate-in slide-in-from-bottom duration-300">
             <div class="flex justify-between items-center mb-8">
-                <span class="text-xs tracking-widest text-gray-400 uppercase">Expense Record</span>
-                <button @click="showModal = false" class="text-2xl f-thin">&times;</button>
+                <span class="text-[10px] tracking-widest text-gray-400 uppercase font-bold">Expense Detail</span>
+                <button @click="showModal = false" class="text-3xl f-thin">&times;</button>
             </div>
             
             <div class="space-y-8 pb-10">
-                <div class="space-y-3">
-                    <input v-model="form.title" type="text" placeholder="項目名稱" class="input-base">
-                    <input v-model.number="form.amount" type="number" placeholder="金額" class="input-base text-xl">
+                <div class="space-y-4">
+                    <input v-model="form.title" type="text" placeholder="消費項目內容" class="input-base">
+                    <div class="relative">
+                        <span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300 text-xs">$</span>
+                        <input v-model.number="form.amount" type="number" placeholder="金額" class="input-base pl-8 text-2xl f-light">
+                    </div>
                     <input v-model="form.date" type="date" class="input-base text-xs">
                 </div>
 
-                <div class="space-y-6">
+                <div class="space-y-8">
                     <div>
-                        <div class="flex justify-between items-center mb-3">
-                            <span class="text-[9px] text-gray-400 uppercase tracking-widest">誰付款？</span>
-                            <button @click="form.pMode = form.pMode==='equal'?'manual':'equal'" class="text-[9px] bg-gray-100 px-2 py-1 rounded">{{ form.pMode==='equal'?'切換手動':'切換平均' }}</button>
+                        <div class="flex justify-between items-center mb-4 px-1">
+                            <span class="text-[9px] text-gray-400 uppercase tracking-widest font-bold">誰付款？</span>
+                            <button @click="form.pMode = form.pMode==='equal'?'manual':'equal'" class="text-[9px] bg-gray-100 px-3 py-1.5 rounded-lg">模式切換</button>
                         </div>
                         <div v-if="form.pMode==='equal'" class="flex flex-wrap gap-2">
-                            <button v-for="m in members" @click="toggleMemberPay(m.id)" :class="form.pList.includes(m.id)?'bg-black text-white':'bg-gray-50 text-gray-400'" class="px-3 py-2 rounded-xl text-[10px] transition-all">{{m.name}}</button>
+                            <button v-for="m in members" @click="toggleMemberPay(m.id)" :class="form.pList.includes(m.id)?'bg-black text-white shadow-md':'bg-gray-50 text-gray-400'" class="px-4 py-2.5 rounded-xl text-xs transition-all">{{m.name}}</button>
                         </div>
                         <div v-else class="space-y-2">
-                            <div v-for="m in members" class="flex justify-between items-center text-xs">
-                                <span>{{m.name}}</span>
-                                <input v-model.number="form.manualP[m.id]" type="number" class="w-20 border-b text-right outline-none">
+                            <div v-for="m in members" class="flex justify-between items-center p-3 bg-gray-50 rounded-xl">
+                                <span class="text-xs">{{m.name}}</span>
+                                <input v-model.number="form.manualP[m.id]" type="number" class="w-24 bg-transparent text-right outline-none text-sm border-b border-gray-200 focus:border-black">
                             </div>
-                            <div class="text-right text-[9px]" :class="payerSumCheck?'text-green-500':'text-red-400'">Sum: {{ currentPayerSum }} / {{ form.amount || 0 }}</div>
+                            <div class="text-right text-[9px] pr-1" :class="payerSumCheck?'text-green-500':'text-red-400'">總計: {{ currentPayerSum }} / {{ form.amount || 0 }}</div>
                         </div>
                     </div>
 
                     <div>
-                        <div class="flex justify-between items-center mb-3">
-                            <span class="text-[9px] text-gray-400 uppercase tracking-widest">誰分攤？</span>
-                            <button @click="form.sMode = form.sMode==='equal'?'manual':'equal'" class="text-[9px] bg-gray-100 px-2 py-1 rounded">{{ form.sMode==='equal'?'切換手動':'切換平均' }}</button>
+                        <div class="flex justify-between items-center mb-4 px-1">
+                            <span class="text-[9px] text-gray-400 uppercase tracking-widest font-bold">誰分攤？</span>
+                            <button @click="form.sMode = form.sMode==='equal'?'manual':'equal'" class="text-[9px] bg-gray-100 px-3 py-1.5 rounded-lg">模式切換</button>
                         </div>
                         <div v-if="form.sMode==='equal'" class="flex flex-wrap gap-2">
-                            <button v-for="m in members" @click="toggleMemberSplit(m.id)" :class="form.sList.includes(m.id)?'bg-black text-white':'bg-gray-50 text-gray-400'" class="px-3 py-2 rounded-xl text-[10px] transition-all">{{m.name}}</button>
+                            <button v-for="m in members" @click="toggleMemberSplit(m.id)" :class="form.sList.includes(m.id)?'bg-black text-white shadow-md':'bg-gray-50 text-gray-400'" class="px-4 py-2.5 rounded-xl text-xs transition-all">{{m.name}}</button>
                         </div>
                         <div v-else class="space-y-2">
-                            <div v-for="m in members" class="flex justify-between items-center text-xs">
-                                <span>{{m.name}}</span>
-                                <input v-model.number="form.manualS[m.id]" type="number" class="w-20 border-b text-right outline-none">
+                            <div v-for="m in members" class="flex justify-between items-center p-3 bg-gray-50 rounded-xl">
+                                <span class="text-xs">{{m.name}}</span>
+                                <input v-model.number="form.manualS[m.id]" type="number" class="w-24 bg-transparent text-right outline-none text-sm border-b border-gray-200 focus:border-black">
                             </div>
-                            <div class="text-right text-[9px]" :class="splitSumCheck?'text-green-500':'text-red-400'">Sum: {{ currentSplitSum }} / {{ form.amount || 0 }}</div>
+                            <div class="text-right text-[9px] pr-1" :class="splitSumCheck?'text-green-500':'text-red-400'">總計: {{ currentSplitSum }} / {{ form.amount || 0 }}</div>
                         </div>
                     </div>
                 </div>
 
                 <div class="flex gap-4 pt-4">
-                    <button v-if="isEditing" @click="deleteExpense" class="text-red-400 text-xs">刪除</button>
-                    <button @click="submitExpense" :disabled="!isValid" class="flex-1 bg-black text-white py-4 rounded-2xl text-xs f-medium disabled:opacity-10 active:scale-95 transition-all shadow-lg">儲存紀錄</button>
+                    <button v-if="isEditing" @click="deleteExpense" class="text-red-400 text-xs font-medium px-4">刪除</button>
+                    <button @click="submitExpense" :disabled="!isValid" class="flex-1 bg-black text-white py-4 rounded-2xl text-xs f-medium disabled:opacity-5 active:scale-95 transition-all shadow-lg">儲存帳務</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <div v-if="showSettlement" class="fixed inset-0 bg-white z-[300] flex flex-col p-6 overflow-y-auto animate-in fade-in">
-        <div class="flex justify-between items-center mb-10">
-            <h2 class="text-xl f-thin">Settlement.</h2>
-            <button @click="showSettlement=false" class="p-2"><i data-lucide="x" class="w-5 h-5"></i></button>
+    <div v-if="showSettlement" class="fixed inset-0 bg-white z-[300] flex flex-col p-8 overflow-y-auto animate-in fade-in">
+        <div class="flex justify-between items-center mb-12">
+            <h2 class="text-2xl f-thin tracking-tighter">Settlement.</h2>
+            <button @click="showSettlement=false" class="p-2 bg-gray-50 rounded-xl"><i data-lucide="x" class="w-5 h-5"></i></button>
         </div>
 
-        <div class="space-y-10">
+        <div class="space-y-12">
             <section>
-                <h4 class="text-[9px] text-gray-300 uppercase tracking-widest mb-6">Transfers</h4>
-                <div v-for="t in settlement.transfers" class="flex justify-between items-center py-4 border-b border-gray-50 text-sm">
-                    <span>{{t.from}} → {{t.to}}</span>
-                    <span class="f-medium">${{Math.round(t.amount)}}</span>
+                <h4 class="text-[9px] text-gray-300 uppercase tracking-[0.4em] mb-8">Transfer Paths</h4>
+                <div class="space-y-4">
+                    <div v-for="t in settlement.transfers" class="flex justify-between items-center p-6 bg-gray-50/50 rounded-3xl text-sm">
+                        <span class="f-light">{{t.from}} <span class="text-gray-300 mx-2">→</span> {{t.to}}</span>
+                        <span class="f-medium text-lg">${{Math.round(t.amount)}}</span>
+                    </div>
                 </div>
+                <div v-if="settlement.transfers.length === 0" class="text-center text-gray-300 py-10 italic text-xs">目前帳務平衡，無需轉帳</div>
             </section>
         </div>
     </div>
@@ -276,6 +297,18 @@
                 return new Date(dateStr).toISOString().split('T')[0];
             }
 
+            // 3️⃣ 個人支出統計邏輯
+            const memberStats = computed(() => {
+                let result = {};
+                members.value.forEach(m => result[m.id] = 0);
+                expenses.value.forEach(e => {
+                    for (let id in e.payers) {
+                        result[id] = Math.round(result[id] * 100 + (Number(e.payers[id]) || 0) * 100) / 100;
+                    }
+                });
+                return result;
+            });
+
             async function fetchProjects() {
                 const { data } = await client.from('projects').select('*').order('created_at', { ascending: false });
                 projects.value = data || [];
@@ -322,13 +355,6 @@
                 expenses.value = e || [];
             }
 
-            // PIN Controls
-            const pinContext = computed(() => {
-                if (isLocked.value) return { title: 'Admin Unlock' };
-                if (showPassSettings.value) return isSettingNew.value || !adminPass.value ? { title: 'Set New PIN' } : { title: 'Verify PIN' };
-                return { title: '' };
-            });
-
             function pressPin(n) { if (pin.value.length < 4) pin.value += n; if (pin.value.length === 4) handlePinComplete(); }
 
             async function handlePinComplete() {
@@ -346,15 +372,21 @@
                 }
             }
 
+            const pinContext = computed(() => {
+                if (isLocked.value) return { title: 'Admin Unlock' };
+                if (showPassSettings.value) return isSettingNew.value || !adminPass.value ? { title: 'Set New PIN' } : { title: 'Verify PIN' };
+                return { title: '' };
+            });
+
             const triggerPassSetup = () => { pin.value = ''; showPassSettings.value = true; };
             const backToHome = () => { if (adminPass.value) { isLocked.value = true; pin.value = ''; } else { currentProjectId.value = null; window.history.pushState({}, '', window.location.pathname); fetchProjects(); } };
             const closePinPad = () => { isLocked.value = false; showPassSettings.value = false; isSettingNew.value = false; pin.value = ''; };
 
-            // Expense Logic
             const preciseSum = (obj) => Object.values(obj).reduce((s, v) => s + Math.round((Number(v) || 0) * 100), 0) / 100;
 
             function openAddExpense() {
-                isEditing = false;
+                // 4️⃣ 修復 isEditing 的 .value
+                isEditing.value = false;
                 form.value = { 
                     title: '', amount: '', date: new Date().toISOString().split('T')[0], 
                     pMode: 'equal', pList: members.value.length > 0 ? [members.value[0].id] : [], manualP: {}, 
@@ -371,6 +403,10 @@
                     pMode: 'manual', pList: [], manualP: {...e.payers},
                     sMode: 'manual', sList: [], manualS: {...e.split_details}
                 };
+                members.value.forEach(m => { 
+                    if (form.value.manualP[m.id] === undefined) form.value.manualP[m.id] = 0; 
+                    if (form.value.manualS[m.id] === undefined) form.value.manualS[m.id] = 0;
+                });
                 showModal.value = true;
             }
 
@@ -380,7 +416,7 @@
             const splitSumCheck = computed(() => Math.abs(currentSplitSum.value - (form.value.amount || 0)) < 0.01);
             
             const isValid = computed(() => {
-                if (!form.value.title || !form.value.amount) return false;
+                if (!form.value.title || !form.value.amount || form.value.amount <= 0) return false;
                 const pOk = form.value.pMode === 'equal' ? form.value.pList.length > 0 : payerSumCheck.value;
                 const sOk = form.value.sMode === 'equal' ? form.value.sList.length > 0 : splitSumCheck.value;
                 return pOk && sOk;
@@ -418,7 +454,7 @@
             }
 
             async function deleteExpense() { if(confirm('Delete?')) { await client.from('expenses').delete().eq('id', editingExpenseId.value); showModal.value=false; loadData(); } }
-            async function addMember() { await client.from('members').insert({ project_id: currentProjectId.value, name: `New` }); loadData(); }
+            async function addMember() { await client.from('members').insert({ project_id: currentProjectId.value, name: `Member` }); loadData(); }
             async function updateMember(m) { await client.from('members').update({name: m.name}).eq('id', m.id); }
             async function deleteMember(id) { if(confirm('Delete member?')) { await client.from('members').delete().eq('id', id); loadData(); } }
 
@@ -445,9 +481,9 @@
                 return { transfers: ts };
             });
 
-            function copyLink() { navigator.clipboard.writeText(window.location.href); alert('Link Copied'); }
+            function copyLink() { navigator.clipboard.writeText(window.location.href); alert('連結已複製！'); }
 
-            return { projects, currentProjectId, projectMeta, members, expenses, editingProjectId, editingProjectName, editingProjectDate, showModal, showSettlement, isEditing, form, totalExpense, isValid, settlement, isLocked, pin, pinContext, adminPass, showPassSettings, newProjectTitle, currentPayerSum, currentSplitSum, payerSumCheck, splitSumCheck, formatDate, saveProjectName, startEditProject, deleteProject, createProject, enterProject, backToHome, pressPin, closePinPad, triggerPassSetup, addMember, updateMember, deleteMember, openAddExpense, openEditExpense, toggleMemberPay, toggleMemberSplit, submitExpense, deleteExpense, copyLink };
+            return { projects, currentProjectId, projectMeta, members, expenses, editingProjectId, editingProjectName, editingProjectDate, showModal, showSettlement, isEditing, form, totalExpense, isValid, settlement, isLocked, pin, pinContext, adminPass, showPassSettings, newProjectTitle, currentPayerSum, currentSplitSum, payerSumCheck, splitSumCheck, memberStats, formatDate, saveProjectName, startEditProject, deleteProject, createProject, enterProject, backToHome, pressPin, closePinPad, triggerPassSetup, addMember, updateMember, deleteMember, openAddExpense, openEditExpense, toggleMemberPay, toggleMemberSplit, submitExpense, deleteExpense, copyLink };
         }
     }).mount('#app');
 </script>
