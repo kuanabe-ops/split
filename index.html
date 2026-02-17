@@ -2,162 +2,85 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>好友多人分帳工具</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>分帳工具-iPhone版</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        :root { --primary: #24b47e; --bg: #f8f9fa; }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); margin: 0; padding: 20px; display: flex; justify-content: center; }
-        .container { width: 100%; max-width: 500px; background: white; padding: 25px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); }
-        h2 { text-align: center; color: #333; margin-bottom: 25px; }
-        
-        .form-group { margin-bottom: 15px; }
-        label { display: block; margin-bottom: 5px; font-size: 0.9em; color: #666; }
-        input { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 16px; }
-        
-        button { width: 100%; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.3s; margin-top: 10px; }
-        button:hover { background: #1f9d6d; opacity: 0.9; }
-        
-        .divider { height: 1px; background: #eee; margin: 30px 0; position: relative; }
-        .divider::after { content: "收支明細"; position: absolute; top: -10px; left: 50%; transform: translateX(-50%); background: white; padding: 0 15px; color: #999; font-size: 0.8em; }
-
-        .summary { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding: 15px; background: #eefaf5; border-radius: 10px; }
-        .total-label { color: #555; }
-        .total-amount { font-size: 1.5em; font-weight: bold; color: var(--primary); }
-
-        ul { list-style: none; padding: 0; }
-        li { padding: 15px; border-bottom: 1px solid #f0f0f0; display: flex; justify-content: space-between; align-items: center; }
-        li:last-child { border-bottom: none; }
-        .item-info { display: flex; flex-direction: column; }
-        .item-payer { font-weight: bold; color: #333; }
-        .item-desc { font-size: 0.85em; color: #888; margin-top: 2px; }
-        .item-price { font-weight: bold; color: #e67e22; }
-        
-        .empty-state { text-align: center; color: #ccc; margin-top: 20px; }
+        body { font-family: -apple-system, sans-serif; background: #f2f2f7; padding: 20px; margin: 0; }
+        .card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        input { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; box-sizing: border-box; }
+        button { width: 100%; padding: 14px; background: #007aff; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; margin-top: 10px; }
+        li { background: #fff; padding: 15px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+        .total { font-size: 20px; font-weight: bold; text-align: center; margin: 20px 0; color: #1c1c1e; }
+        .delete-hint { font-size: 12px; color: #8e8e93; text-align: center; margin-top: 5px; }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <h2>💰 多人即時分帳</h2>
-    
-    <div class="form-group">
-        <label>誰付的錢？</label>
-        <input type="text" id="payer" placeholder="例如：小明">
-    </div>
-    <div class="form-group">
-        <label>多少錢？</label>
-        <input type="number" id="amount" placeholder="例如：1200">
-    </div>
-    <div class="form-group">
-        <label>項目說明</label>
-        <input type="text" id="description" placeholder="例如：鼎泰豐午餐">
-    </div>
-    <button onclick="addExpense()">確認新增</button>
-
-    <div class="divider"></div>
-
-    <div class="summary">
-        <span class="total-label">總計支出</span>
-        <span class="total-amount" id="totalDisplay">$0</span>
-    </div>
-
-    <ul id="expenseList">
-        <div class="empty-state">目前還沒有資料...</div>
-    </ul>
+<div class="card">
+    <h3 style="margin-top:0">💰 多人分帳</h3>
+    <input type="text" id="payer" placeholder="付款人" autocomplete="off">
+    <input type="number" id="amount" placeholder="金額" inputmode="decimal">
+    <input type="text" id="description" placeholder="項目內容" autocomplete="off">
+    <button onclick="addExpense()">新增紀錄</button>
 </div>
 
+<div class="total" id="totalDisplay">總計: $0</div>
+<div class="delete-hint">提示：點擊項目即可刪除</div>
+<div id="expenseList" style="margin-top: 10px; border-radius: 12px; overflow: hidden;"></div>
+
 <script>
-    // --- 1. Supabase 設定 (已填入你的資訊) ---
-    const SUPABASE_URL = 'https://kwrefnmhjuwnvfipxdyq.supabase.co'; 
+    const SUPABASE_URL = 'https://kwrefnmhjuwnvfipxdyq.supabase.co';
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt3cmVmbm1oanV3bnZmaXB4ZHlxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEyOTQ4NTksImV4cCI6MjA4Njg3MDg1OX0.jthw2efO6SSzIm0PpY0scQ9cBrAtByEzxxrzz1YOHlc';
-    
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    const expenseList = document.getElementById('expenseList');
-    const totalDisplay = document.getElementById('totalDisplay');
-
-    // --- 2. 獲取資料函數 ---
     async function fetchExpenses() {
-        let { data: expenses, error } = await supabaseClient
-            .from('expenses')
-            .select('*')
-            .order('created_at', { ascending: false });
-
-        if (error) {
-            console.error('讀取失敗:', error);
-            return;
-        }
-        render(expenses);
+        const { data, error } = await supabaseClient.from('expenses').select('*').order('created_at', { ascending: false });
+        if (!error) render(data);
     }
 
-    // --- 3. 渲染畫面 ---
-    function render(expenses) {
-        if (expenses.length === 0) {
-            expenseList.innerHTML = '<div class="empty-state">目前還沒有資料...</div>';
-            totalDisplay.innerText = '$0';
-            return;
-        }
-
-        expenseList.innerHTML = '';
+    function render(data) {
+        const list = document.getElementById('expenseList');
         let total = 0;
-        expenses.forEach(item => {
-            total += parseFloat(item.amount || 0);
-            const li = document.createElement('li');
-            li.innerHTML = `
-                <div class="item-info">
-                    <span class="item-payer">${item.payer}</span>
-                    <span class="item-desc">${item.description || '未分類'}</span>
+        list.innerHTML = data.map(item => {
+            total += Number(item.amount);
+            return `<div class="li" onclick="deleteItem(${item.id}, '${item.description}')">
+                <div style="padding:15px; background:white; border-bottom:1px solid #eee; display:flex; justify-content:space-between">
+                    <span><b>${item.payer}</b>: ${item.description}</span>
+                    <span style="color:#ff3b30; font-weight:bold">$${item.amount}</span>
                 </div>
-                <span class="item-price">$${item.amount}</span>
-            `;
-            expenseList.appendChild(li);
-        });
-        totalDisplay.innerText = `$${total.toLocaleString()}`;
+            </div>`;
+        }).join('');
+        document.getElementById('totalDisplay').innerText = `總計: $${total}`;
     }
 
-    // --- 4. 新增資料到資料庫 ---
     async function addExpense() {
-        const payer = document.getElementById('payer').value.trim();
+        const payer = document.getElementById('payer').value;
         const amount = document.getElementById('amount').value;
-        const description = document.getElementById('description').value.trim();
+        const description = document.getElementById('description').value;
+        if(!payer || !amount) return alert('請輸入完整資訊');
 
-        if (!payer || !amount) {
-            alert('請輸入姓名與金額！');
-            return;
-        }
-
-        const { error } = await supabaseClient
-            .from('expenses')
-            .insert([{ 
-                payer: payer, 
-                amount: parseFloat(amount), 
-                description: description 
-            }]);
-
-        if (error) {
-            alert('儲存失敗，請檢查資料表名稱是否為 expenses 且 RLS 已關閉');
-            console.error(error);
-        } else {
-            // 清空輸入欄位
+        const { error } = await supabaseClient.from('expenses').insert([{ payer, amount, description }]);
+        if (error) alert('儲存失敗，請檢查 SQL 是否已執行');
+        else {
             document.getElementById('amount').value = '';
             document.getElementById('description').value = '';
-            // 由於有 Realtime 監聽，這裡其實可以不用手動 fetch，但手動 fetch 會反應更快
             fetchExpenses();
         }
     }
 
-    // --- 5. 開啟即時更新 (Realtime) ---
-    // 這能讓其他人的網頁自動跳出新資料
-    supabaseClient
-        .channel('any')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'expenses' }, payload => {
-            console.log('偵測到變動:', payload);
+    async function deleteItem(id, name) {
+        if(confirm(`確定要刪除「${name}」嗎？`)) {
+            await supabaseClient.from('expenses').delete().eq('id', id);
             fetchExpenses();
-        })
-        .subscribe();
+        }
+    }
 
-    // 初始化讀取
+    // 開啟即時更新
+    supabaseClient.channel('custom-all-channel')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'expenses' }, () => fetchExpenses())
+    .subscribe();
+
     fetchExpenses();
 </script>
 
