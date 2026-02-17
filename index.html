@@ -3,86 +3,313 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>分帳工具-iPhone版</title>
+    <title>專業多人分帳系統</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
+
     <style>
-        body { font-family: -apple-system, sans-serif; background: #f2f2f7; padding: 20px; margin: 0; }
-        .card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-        input { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; box-sizing: border-box; }
-        button { width: 100%; padding: 14px; background: #007aff; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; margin-top: 10px; }
-        li { background: #fff; padding: 15px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
-        .total { font-size: 20px; font-weight: bold; text-align: center; margin: 20px 0; color: #1c1c1e; }
-        .delete-hint { font-size: 12px; color: #8e8e93; text-align: center; margin-top: 5px; }
+        body { background-color: #f2f2f7; -webkit-tap-highlight-color: transparent; }
+        .safe-area-bottom { padding-bottom: env(safe-area-inset-bottom); }
+        input[type="number"]::-webkit-inner-spin-button { display: none; }
     </style>
 </head>
 <body>
 
-<div class="card">
-    <h3 style="margin-top:0">💰 多人分帳</h3>
-    <input type="text" id="payer" placeholder="付款人" autocomplete="off">
-    <input type="number" id="amount" placeholder="金額" inputmode="decimal">
-    <input type="text" id="description" placeholder="項目內容" autocomplete="off">
-    <button onclick="addExpense()">新增紀錄</button>
+<div id="app" class="max-w-md mx-auto min-h-screen bg-white shadow-xl relative flex flex-col">
+
+    <div v-if="!projectId" class="p-8 flex flex-col justify-center flex-1">
+        <h1 class="text-4xl font-black text-center mb-2 text-blue-600">分帳神器</h1>
+        <p class="text-center text-gray-400 mb-8">管理專案、成員與複雜帳務</p>
+        <div class="space-y-4">
+            <input v-model="newProjectName" type="text" placeholder="輸入專案名稱 (如: 東京之旅)" class="w-full p-4 border rounded-xl bg-gray-50 focus:ring-2 focus:ring-blue-500 outline-none">
+            <button @click="createProject" class="w-full bg-blue-600 text-white py-4 rounded-xl font-bold shadow-lg active:scale-95 transition">建立新專案</button>
+        </div>
+    </div>
+
+    <div v-else class="flex flex-col flex-1">
+        <header class="bg-blue-600 text-white p-4 sticky top-0 z-30">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h2 class="font-bold text-xl">{{ projectName }}</h2>
+                    <p class="text-xs opacity-70" @click="copyLink">點此複製網址分享給成員 🔗</p>
+                </div>
+                <button @click="currentView = 'settle'" class="bg-white/20 px-4 py-2 rounded-lg font-bold text-sm backdrop-blur-md">結算結果</button>
+            </div>
+        </header>
+
+        <nav class="flex border-b bg-white sticky top-[68px] z-20">
+            <button @click="currentView = 'list'" :class="currentView === 'list' ? 'border-b-4 border-blue-600 text-blue-600' : 'text-gray-400'" class="flex-1 py-4 font-bold transition">帳務清單</button>
+            <button @click="currentView = 'members'" :class="currentView === 'members' ? 'border-b-4 border-blue-600 text-blue-600' : 'text-gray-400'" class="flex-1 py-4 font-bold transition">成員管理</button>
+        </nav>
+
+        <main v-if="currentView === 'list'" class="p-4 space-y-3 flex-1">
+            <div v-if="expenses.length === 0" class="py-20 text-center text-gray-300">
+                目前尚無紀錄<br>請點擊右下角按鈕新增
+            </div>
+            <div v-for="exp in expenses" :key="exp.id" class="bg-white border p-4 rounded-xl shadow-sm">
+                <div class="flex justify-between items-start">
+                    <h4 class="font-bold text-gray-800 text-lg">{{ exp.title }}</h4>
+                    <span class="text-blue-600 font-black text-xl">${{ exp.amount }}</span>
+                </div>
+                <div class="flex justify-between items-end mt-2">
+                    <div class="text-xs text-gray-500">
+                        <div>🕒 {{ exp.date }}</div>
+                        <div>👤 付款人: {{ getPayerDisplay(exp.payers) }}</div>
+                    </div>
+                    <button @click="deleteExpense(exp.id)" class="text-red-400 text-xs">刪除</button>
+                </div>
+            </div>
+            <div class="h-24"></div>
+        </main>
+
+        <main v-if="currentView === 'members'" class="p-4 space-y-4">
+            <div class="grid grid-cols-2 gap-2">
+                <div v-for="m in members" :key="m.id" class="bg-gray-100 p-3 rounded-lg flex justify-between">
+                    <span class="font-bold">{{ m.name }}</span>
+                </div>
+            </div>
+            <div class="flex gap-2">
+                <input v-model="newMemberName" type="text" placeholder="新成員姓名" class="flex-1 p-3 border rounded-lg outline-none">
+                <button @click="addMember" class="bg-green-500 text-white px-6 rounded-lg font-bold">加入</button>
+            </div>
+        </main>
+
+        <div v-if="currentView === 'settle'" class="fixed inset-0 bg-white z-50 p-6 overflow-y-auto">
+            <button @click="currentView = 'list'" class="text-blue-600 font-bold mb-6">✕ 關閉結算</button>
+            <h2 class="text-3xl font-black mb-6">結算報告</h2>
+            
+            <section class="mb-8">
+                <h3 class="text-gray-400 font-bold mb-3 uppercase tracking-widest text-sm">個人支出統計</h3>
+                <div class="space-y-2">
+                    <div v-for="s in settlement.balances" class="flex justify-between p-3 bg-gray-50 rounded-lg">
+                        <span class="font-bold">{{ s.name }}</span>
+                        <span :class="s.amount >= 0 ? 'text-green-600' : 'text-red-500'" class="font-mono font-bold">
+                            {{ s.amount >= 0 ? '應收' : '應付' }} ${{ Math.abs(Math.round(s.amount)) }}
+                        </span>
+                    </div>
+                </div>
+            </section>
+
+            <section>
+                <h3 class="text-gray-400 font-bold mb-3 uppercase tracking-widest text-sm">建議轉帳方案</h3>
+                <div v-if="settlement.transfers.length === 0" class="text-center py-10 text-gray-300">目前帳務平衡，不需轉帳</div>
+                <div v-for="t in settlement.transfers" class="bg-blue-50 p-4 rounded-xl border border-blue-100 mb-3 flex items-center justify-between">
+                    <span><b>{{ t.from }}</b> 轉給 <b>{{ t.to }}</b></span>
+                    <span class="text-blue-600 font-black text-xl">${{ Math.round(t.amount) }}</span>
+                </div>
+            </section>
+        </div>
+
+        <button v-if="currentView === 'list'" @click="openModal" class="fixed bottom-8 right-8 w-16 h-16 bg-blue-600 text-white rounded-full shadow-2xl text-3xl font-bold active:scale-90 transition-transform z-40">+</button>
+
+        <div v-if="isModalOpen" class="fixed inset-0 bg-black/60 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4">
+            <div class="bg-white w-full max-w-md rounded-t-2xl sm:rounded-2xl flex flex-col max-h-[90vh]">
+                <div class="p-4 border-b flex justify-between items-center bg-gray-50">
+                    <span class="font-black text-lg">新增帳務</span>
+                    <button @click="isModalOpen = false" class="text-2xl text-gray-400">&times;</button>
+                </div>
+
+                <div class="p-5 overflow-y-auto space-y-4">
+                    <input v-model="form.title" type="text" placeholder="項目名稱 (如: 晚餐)" class="w-full p-3 border rounded-xl bg-gray-50 outline-none">
+                    <div class="flex gap-2">
+                        <input v-model.number="form.amount" type="number" placeholder="金額" class="flex-1 p-3 border rounded-xl bg-gray-50 outline-none">
+                        <input v-model="form.date" type="date" class="w-1/3 p-3 border rounded-xl bg-gray-50 text-sm outline-none">
+                    </div>
+
+                    <div class="p-4 border rounded-xl space-y-3">
+                        <div class="flex justify-between items-center">
+                            <label class="font-bold text-sm">誰付款的？</label>
+                            <div class="bg-gray-200 p-1 rounded-lg flex text-xs font-bold cursor-pointer">
+                                <div @click="form.pMode='single'" :class="form.pMode==='single'?'bg-white shadow text-blue-600':''" class="px-3 py-1 rounded-md transition">單人</div>
+                                <div @click="form.pMode='multi'" :class="form.pMode==='multi'?'bg-white shadow text-blue-600':''" class="px-3 py-1 rounded-md transition">手動</div>
+                            </div>
+                        </div>
+                        <select v-if="form.pMode==='single'" v-model="form.singleP" class="w-full p-2 border rounded-lg">
+                            <option v-for="m in members" :value="m.id">{{ m.name }}</option>
+                        </select>
+                        <div v-else class="space-y-2">
+                            <div v-for="m in members" class="flex justify-between items-center">
+                                <span class="text-sm">{{ m.name }}</span>
+                                <input v-model.number="form.multiP[m.id]" type="number" placeholder="0" class="w-24 p-2 border rounded text-right">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="p-4 border rounded-xl space-y-3">
+                        <div class="flex justify-between items-center">
+                            <label class="font-bold text-sm">如何分帳？</label>
+                            <div class="bg-gray-200 p-1 rounded-lg flex text-xs font-bold cursor-pointer">
+                                <div @click="form.sMode='equal'" :class="form.sMode==='equal'?'bg-white shadow text-blue-600':''" class="px-3 py-1 rounded-md transition">平均</div>
+                                <div @click="form.sMode='manual'" :class="form.sMode==='manual'?'bg-white shadow text-blue-600':''" class="px-3 py-1 rounded-md transition">手動</div>
+                            </div>
+                        </div>
+                        <div v-if="form.sMode==='equal'" class="flex flex-wrap gap-2">
+                            <div v-for="m in members" @click="toggleSplit(m.id)" :class="form.sList.includes(m.id)?'bg-blue-600 text-white':'bg-gray-100 text-gray-400'" class="px-4 py-2 rounded-full text-xs font-bold transition">
+                                {{ m.name }}
+                            </div>
+                        </div>
+                        <div v-else class="space-y-2">
+                            <div v-for="m in members" class="flex justify-between items-center">
+                                <span class="text-sm">{{ m.name }}</span>
+                                <input v-model.number="form.manualS[m.id]" type="number" placeholder="0" class="w-24 p-2 border rounded text-right">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="p-5 safe-area-bottom">
+                    <button @click="save" class="w-full bg-blue-600 text-white py-4 rounded-xl font-bold shadow-lg active:scale-95 transition">完成記帳</button>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
-<div class="total" id="totalDisplay">總計: $0</div>
-<div class="delete-hint">提示：點擊項目即可刪除</div>
-<div id="expenseList" style="margin-top: 10px; border-radius: 12px; overflow: hidden;"></div>
-
 <script>
-    const SUPABASE_URL = 'https://kwrefnmhjuwnvfipxdyq.supabase.co';
-    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt3cmVmbm1oanV3bnZmaXB4ZHlxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEyOTQ4NTksImV4cCI6MjA4Njg3MDg1OX0.jthw2efO6SSzIm0PpY0scQ9cBrAtByEzxxrzz1YOHlc';
-    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    // --- 已幫你填好你的專案資訊 ---
+    const SB_URL = 'https://kwrefnmhjuwnvfipxdyq.supabase.co';
+    const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt3cmVmbm1oanV3bnZmaXB4ZHlxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEyOTQ4NTksImV4cCI6MjA4Njg3MDg1OX0.jthw2efO6SSzIm0PpY0scQ9cBrAtByEzxxrzz1YOHlc';
+    const client = supabase.createClient(SB_URL, SB_KEY);
 
-    async function fetchExpenses() {
-        const { data, error } = await supabaseClient.from('expenses').select('*').order('created_at', { ascending: false });
-        if (!error) render(data);
-    }
+    const { createApp, ref, onMounted, computed } = Vue;
 
-    function render(data) {
-        const list = document.getElementById('expenseList');
-        let total = 0;
-        list.innerHTML = data.map(item => {
-            total += Number(item.amount);
-            return `<div class="li" onclick="deleteItem(${item.id}, '${item.description}')">
-                <div style="padding:15px; background:white; border-bottom:1px solid #eee; display:flex; justify-content:space-between">
-                    <span><b>${item.payer}</b>: ${item.description}</span>
-                    <span style="color:#ff3b30; font-weight:bold">$${item.amount}</span>
-                </div>
-            </div>`;
-        }).join('');
-        document.getElementById('totalDisplay').innerText = `總計: $${total}`;
-    }
+    createApp({
+        setup() {
+            const projectId = ref(null);
+            const projectName = ref('');
+            const newProjectName = ref('');
+            const members = ref([]);
+            const expenses = ref([]);
+            const currentView = ref('list');
+            const isModalOpen = ref(false);
+            const newMemberName = ref('');
 
-    async function addExpense() {
-        const payer = document.getElementById('payer').value;
-        const amount = document.getElementById('amount').value;
-        const description = document.getElementById('description').value;
-        if(!payer || !amount) return alert('請輸入完整資訊');
+            const form = ref({
+                title: '', amount: '', date: '', pMode: 'single', singleP: '', multiP: {}, sMode: 'equal', sList: [], manualS: {}
+            });
 
-        const { error } = await supabaseClient.from('expenses').insert([{ payer, amount, description }]);
-        if (error) alert('儲存失敗，請檢查 SQL 是否已執行');
-        else {
-            document.getElementById('amount').value = '';
-            document.getElementById('description').value = '';
-            fetchExpenses();
+            onMounted(() => {
+                const pid = new URLSearchParams(window.location.search).get('project_id');
+                if(pid) {
+                    projectId.value = pid;
+                    init();
+                    listen();
+                }
+            });
+
+            async function init() {
+                const { data: p } = await client.from('projects').select('*').eq('id', projectId.value).single();
+                if(p) projectName.value = p.name;
+                const { data: m } = await client.from('members').select('*').eq('project_id', projectId.value);
+                members.value = m || [];
+                refresh();
+            }
+
+            async function refresh() {
+                const { data } = await client.from('expenses').select('*').eq('project_id', projectId.value).order('created_at', {ascending: false});
+                expenses.value = data || [];
+            }
+
+            function listen() {
+                client.channel('any').on('postgres_changes', {event:'*', schema:'public'}, () => {
+                    init();
+                }).subscribe();
+            }
+
+            async function createProject() {
+                if(!newProjectName.value) return;
+                const { data } = await client.from('projects').insert({name: newProjectName.value}).select().single();
+                window.location.search = `?project_id=${data.id}`;
+            }
+
+            async function addMember() {
+                if(!newMemberName.value) return;
+                await client.from('members').insert({project_id: projectId.value, name: newMemberName.value});
+                newMemberName.value = '';
+            }
+
+            function openModal() {
+                if(members.value.length === 0) return alert('請先加入成員');
+                form.value = {
+                    title: '', amount: '', date: new Date().toISOString().split('T')[0],
+                    pMode: 'single', singleP: members.value[0].id, multiP: {},
+                    sMode: 'equal', sList: members.value.map(m=>m.id), manualS: {}
+                };
+                isModalOpen.value = true;
+            }
+
+            function toggleSplit(id) {
+                const idx = form.value.sList.indexOf(id);
+                idx > -1 ? form.value.sList.splice(idx, 1) : form.value.sList.push(id);
+            }
+
+            async function save() {
+                const f = form.value;
+                if(!f.title || !f.amount) return alert('請填寫完整');
+                
+                let payObj = {};
+                if(f.pMode === 'single') payObj[f.singleP] = f.amount;
+                else payObj = f.multiP;
+
+                let splitObj = {};
+                if(f.sMode === 'equal') {
+                    const avg = f.amount / f.sList.length;
+                    f.sList.forEach(id => splitObj[id] = avg);
+                } else splitObj = f.manualS;
+
+                await client.from('expenses').insert({
+                    project_id: projectId.value, title: f.title, amount: f.amount,
+                    date: f.date, payers: payObj, split_details: splitObj
+                });
+                isModalOpen.value = false;
+            }
+
+            async function deleteExpense(id) {
+                if(confirm('刪除此筆帳務？')) await client.from('expenses').delete().eq('id', id);
+            }
+
+            const settlement = computed(() => {
+                const balances = {};
+                members.value.forEach(m => balances[m.id] = 0);
+                expenses.value.forEach(e => {
+                    for(let id in e.payers) balances[id] = (balances[id] || 0) + Number(e.payers[id]);
+                    for(let id in e.split_details) balances[id] = (balances[id] || 0) - Number(e.split_details[id]);
+                });
+
+                const sorted = members.value.map(m => ({name: m.name, amount: balances[m.id] || 0}))
+                    .sort((a,b) => b.amount - a.amount);
+                
+                const transfers = [];
+                let d = sorted.filter(x => x.amount < -0.1), c = sorted.filter(x => x.amount > 0.1);
+                let i=0, j=0;
+                while(i < d.length && j < c.length) {
+                    let amt = Math.min(Math.abs(d[i].amount), c[j].amount);
+                    transfers.push({from: d[i].name, to: c[j].name, amount: amt});
+                    d[i].amount += amt; c[j].amount -= amt;
+                    if(Math.abs(d[i].amount) < 0.1) i++;
+                    if(c[j].amount < 0.1) j++;
+                }
+                return { balances: sorted, transfers };
+            });
+
+            function getPayerDisplay(p) {
+                const ids = Object.keys(p);
+                if(ids.length > 1) return '多人分擔';
+                return members.value.find(m => m.id == ids[0])?.name || '未知';
+            }
+
+            function copyLink() {
+                navigator.clipboard.writeText(window.location.href);
+                Toastify({text:"分享連結已複製！", duration:2000, gravity:"top", position:"center", style:{background:"#2563eb", borderRadius:"10px"}}).showToast();
+            }
+
+            return { projectId, projectName, newProjectName, members, expenses, currentView, isModalOpen, newMemberName, form, settlement, createProject, addMember, openModal, toggleSplit, save, deleteExpense, getPayerDisplay, copyLink };
         }
-    }
-
-    async function deleteItem(id, name) {
-        if(confirm(`確定要刪除「${name}」嗎？`)) {
-            await supabaseClient.from('expenses').delete().eq('id', id);
-            fetchExpenses();
-        }
-    }
-
-    // 開啟即時更新
-    supabaseClient.channel('custom-all-channel')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'expenses' }, () => fetchExpenses())
-    .subscribe();
-
-    fetchExpenses();
+    }).mount('#app');
 </script>
-
 </body>
 </html>
