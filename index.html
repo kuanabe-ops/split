@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Split. Midnight Matte</title>
+    <title>Split. Midnight Matte 6.1</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
@@ -13,15 +13,12 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500&display=swap');
         
-        /* 1️⃣ 一、暗黑霧面色系 */
         :root {
             --bg: #0F1115;
             --card: rgba(255,255,255,0.04);
             --primary: #F5F7FA;
-            --soft: rgba(255,255,255,0.08);
         }
 
-        /* 2️⃣ 背景改霧面黑漸層 */
         html {
             -webkit-text-size-adjust: 100%;
             overflow-x: hidden;
@@ -32,29 +29,15 @@
             -webkit-font-smoothing: antialiased;
         }
 
-        body { 
-            display: flex; 
-            justify-content: center;
-        }
+        body { display: flex; justify-content: center; }
 
-        button, .pin-btn, input {
-            touch-action: manipulation;
-        }
-
-        #app {
-            width: 100%;
-            max-width: 390px; 
-            margin: 0 auto;
-            min-height: 100vh;
-            position: relative;
-        }
+        #app { width: 100%; max-width: 390px; margin: 0 auto; min-height: 100vh; position: relative; }
 
         .f-light { font-weight: 300; }
         .f-medium { font-weight: 500; }
         
         * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
 
-        /* 3️⃣ 卡片改霧面玻璃 */
         .card {
             @apply rounded-[24px];
             background: rgba(255,255,255,0.04);
@@ -62,12 +45,12 @@
             backdrop-filter: blur(12px);
         }
         
-        /* 🔐 二、PIN 鍵盤巨大化 + 圓角底色 */
+        /* ✅ 2️⃣ PIN 鍵盤縮小 */
         .pin-btn { 
-            width: 96px;
-            height: 96px;
-            border-radius: 28px;
-            font-size: 32px;
+            width: 72px;
+            height: 72px;
+            border-radius: 22px;
+            font-size: 22px;
             font-weight: 300;
             background: rgba(255,255,255,0.06);
             color: #F5F7FA;
@@ -78,14 +61,7 @@
             align-items: center;
             justify-content: center;
         }
-        .pin-btn:active {
-            transform: scale(0.95);
-            background: rgba(255,255,255,0.12);
-        }
-
-        .input-matte {
-            @apply w-full bg-white/5 rounded-2xl px-5 py-4 text-sm outline-none border border-white/5 text-[#F5F7FA] transition-all focus:bg-white/10;
-        }
+        .pin-btn:active { transform: scale(0.95); background: rgba(255,255,255,0.12); }
         
         [v-cloak] { display: none; }
     </style>
@@ -95,13 +71,7 @@
 <div id="app" v-cloak class="flex flex-col relative px-5">
 
     <transition name="fade">
-        <div v-if="showToast" 
-             class="fixed top-16 left-1/2 -translate-x-1/2 
-                    bg-white/10 backdrop-blur-xl
-                    text-white text-xs f-medium
-                    px-8 py-3 rounded-full
-                    shadow-2xl border border-white/10
-                    z-[999] transition-all text-center">
+        <div v-if="showToast" class="fixed top-16 left-1/2 -translate-x-1/2 bg-white/10 backdrop-blur-xl text-white text-xs f-medium px-8 py-3 rounded-full shadow-2xl border border-white/10 z-[999] text-center">
             連結已複製
         </div>
     </transition>
@@ -109,11 +79,11 @@
     <div v-if="isLocked || showPassSettings" class="fixed inset-0 bg-[#0F1115] z-[500] flex flex-col items-center justify-center p-6 animate-in fade-in duration-300">
         <h2 class="text-xs mb-12 f-medium tracking-[0.4em] text-gray-500 uppercase">{{ pinContext.title }}</h2>
         <div class="flex gap-4 mb-16">
-            <div v-for="i in 4" class="w-12 h-12 border-b-2 flex items-center justify-center transition-all" :class="pin.length >= i ? 'border-white' : 'border-white/10'">
+            <div v-for="i in 4" class="w-12 h-12 border-b-2 flex items-center justify-center" :class="pin.length >= i ? 'border-white' : 'border-white/10'">
                 <span v-if="pin.length >= i" class="text-3xl mt-1 text-white">*</span>
             </div>
         </div>
-        <div class="grid grid-cols-3 gap-10">
+        <div class="grid grid-cols-3 gap-6">
             <button v-for="n in 9" @click="pressPin(n)" class="pin-btn">{{n}}</button>
             <button @click="pin=''" class="text-sm text-gray-500 f-medium">清除</button>
             <button @click="pressPin(0)" class="pin-btn">0</button>
@@ -128,13 +98,12 @@
         </header>
 
         <div class="flex items-center gap-3 w-full mb-12">
-            <input v-model="newProjectTitle" type="text" placeholder="去哪裡旅行？" 
-                   @keyup.enter="createProject"
-                   class="w-full bg-white/5 border border-white/5 rounded-2xl px-6 py-5 text-lg shadow-sm outline-none f-light text-white">
+            <input v-model="newProjectTitle" type="text" placeholder="去哪裡旅行？" @keyup.enter="createProject"
+                   class="w-full bg-white/5 border border-white/5 rounded-2xl px-6 py-5 text-lg outline-none f-light text-white">
             
             <button @click="createProject" 
-                    class="w-14 h-14 bg-black rounded-2xl flex items-center justify-center shadow-lg active:scale-95 transition-all flex-shrink-0 border border-white/10">
-                <i data-lucide="plus" class="w-4 h-4 text-white"></i>
+                    class="w-14 h-14 bg-white/10 rounded-2xl flex items-center justify-center transition-all flex-shrink-0 border border-white/5 active:scale-95">
+                <i data-lucide="plus" class="w-4 h-4 text-white/10"></i>
             </button>
         </div>
 
@@ -171,19 +140,14 @@
         <main class="flex-1 overflow-y-auto pt-4 pb-36">
             <div class="mb-10 px-2 text-center">
                 <h3 class="text-xs text-gray-500 tracking-[0.3em] uppercase f-medium mb-6">個人支出</h3>
-                <div class="space-y-3 max-w-[240px] mx-auto bg-white/5 p-5 rounded-[24px] shadow-sm border border-white/10">
+                <div class="space-y-3 max-w-[240px] mx-auto bg-white/5 p-5 rounded-[24px] border border-white/10">
                     <div v-for="m in members" class="flex justify-between text-[12px]">
                         <span class="f-medium text-gray-500">{{m.name}}</span>
                         <span class="f-medium text-white">${{ memberStats[m.id]?.toLocaleString() || 0 }}</span>
                     </div>
                 </div>
-                <div class="mt-6 text-center text-xs text-gray-500 f-medium tracking-wider">
-                    總支出 ${{ totalExpense.toLocaleString() }}
-                </div>
-                <button @click="showSettlement = true" 
-                        class="mt-10 bg-white text-black px-10 py-3 rounded-full text-sm f-medium tracking-wider shadow-lg active:scale-95 transition-all">
-                    查看結算
-                </button>
+                <div class="mt-6 text-center text-xs text-gray-500 f-medium tracking-wider">總支出 ${{ totalExpense.toLocaleString() }}</div>
+                <button @click="showSettlement = true" class="mt-10 bg-white text-black px-10 py-3 rounded-full text-sm f-medium tracking-wider shadow-lg active:scale-95 transition-all">查看結算</button>
             </div>
 
             <section class="mb-10">
@@ -208,7 +172,7 @@
                     <div class="flex-1 truncate pr-3">
                         <p class="text-sm f-medium mb-1 truncate text-white">{{ exp.title }}</p>
                         <p class="text-[11px] text-gray-500 f-medium">
-                            {{ getPayerName(exp) }} 付款 · {{ Object.keys(exp.split_details || {}).length }} 人分攤
+                            {{ getPayerDisplay(exp) }} · {{ getSplitCount(exp) }} 人分攤
                         </p>
                     </div>
                     <span class="f-medium text-lg tracking-tight text-white">${{ Number(exp.amount).toLocaleString() }}</span>
@@ -226,8 +190,12 @@
             
             <div class="space-y-4 pb-10">
                 <input v-model="form.date" type="date" class="w-full text-sm text-gray-500 mb-2 outline-none bg-transparent f-medium">
-                <input v-model="form.title" type="text" placeholder="消費項目" class="input-matte">
-                <input v-model.number="form.amount" type="number" placeholder="金額" class="input-matte">
+                
+                <input v-model="form.title" type="text" placeholder="消費項目"
+                       class="w-full bg-transparent border-b border-white/10 py-3 text-white outline-none">
+
+                <input v-model.number="form.amount" type="number" placeholder="金額"
+                       class="w-full bg-transparent border-b border-white/10 py-3 text-white outline-none">
                 
                 <div class="pt-6 space-y-8">
                     <div>
@@ -238,7 +206,9 @@
                             </button>
                         </div>
                         <div v-if="form.pMode==='equal'" class="flex flex-wrap gap-2">
-                            <button v-for="m in members" @click="toggleMemberPay(m.id)" :class="form.pList.includes(m.id)?'bg-white text-black':'bg-white/5 text-gray-500'" class="px-5 py-2.5 rounded-2xl text-xs f-medium transition-all">{{m.name}}</button>
+                            <button v-for="m in members" @click="toggleMemberPay(m.id)" 
+                                    :class="form.pList.includes(m.id)?'bg-blue-500/20 text-blue-200 border border-blue-400/20':'bg-white/5 text-gray-500'" 
+                                    class="px-5 py-2.5 rounded-2xl text-xs f-medium transition-all">{{m.name}}</button>
                         </div>
                         <div v-else class="space-y-3">
                             <div v-for="m in members" class="flex justify-between items-center p-3 bg-white/5 rounded-2xl">
@@ -252,14 +222,16 @@
                         <div class="flex justify-between items-center mb-4">
                             <span class="text-[10px] text-gray-500 uppercase f-medium">誰分攤？</span>
                             <div class="flex gap-2">
-                                <button @click="toggleAllSplit" class="text-[10px] text-gray-500 f-medium">全選</button>
+                                <button @click="toggleAllSplit" class="text-[10px] text-gray-400 f-medium">全選</button>
                                 <button @click="form.sMode = form.sMode==='equal'?'manual':'equal'" class="text-[10px] bg-white/5 text-gray-400 px-4 py-1.5 rounded-full">
                                     {{ form.sMode==='equal' ? '平均' : '手動' }}
                                 </button>
                             </div>
                         </div>
                         <div v-if="form.sMode==='equal'" class="flex flex-wrap gap-2">
-                            <button v-for="m in members" @click="toggleMemberSplit(m.id)" :class="form.sList.includes(m.id)?'bg-white text-black':'bg-white/5 text-gray-500'" class="px-5 py-2.5 rounded-2xl text-xs f-medium transition-all">{{m.name}}</button>
+                            <button v-for="m in members" @click="toggleMemberSplit(m.id)" 
+                                    :class="form.sList.includes(m.id)?'bg-blue-500/20 text-blue-200 border border-blue-400/20':'bg-white/5 text-gray-500'" 
+                                    class="px-5 py-2.5 rounded-2xl text-xs f-medium transition-all">{{m.name}}</button>
                         </div>
                         <div v-else class="space-y-3">
                             <div v-for="m in members" class="flex justify-between items-center p-3 bg-white/5 rounded-2xl">
@@ -291,7 +263,6 @@
                 </div>
                 <span class="f-medium text-2xl text-white">${{Math.round(t.amount)}}</span>
             </div>
-            <div v-if="settlement.transfers.length === 0" class="text-center text-gray-500 py-20 italic">已完全平衡</div>
         </div>
     </div>
 
@@ -347,12 +318,22 @@
                 return new Date(dateStr).toISOString().split('T')[0];
             }
 
-            // 🗂 六、取得付款人姓名
-            function getPayerName(exp) {
-                const payerIds = Object.keys(exp.payers || {});
-                if (payerIds.length === 0) return '';
-                const m = members.value.find(x => x.id == payerIds[0]);
-                return m ? m.name : '未知';
+            // ✅ 4️⃣ 分攤人數只算金額非 0 的人
+            function getSplitCount(exp) {
+                if (!exp.split_details) return 0;
+                return Object.values(exp.split_details).filter(v => Number(v) > 0).length;
+            }
+
+            // ✅ 5️⃣ 付款人顯示邏輯（支持多人付款）
+            function getPayerDisplay(exp) {
+                if (!exp.payers) return '';
+                const valid = Object.entries(exp.payers).filter(([id, v]) => Number(v) > 0);
+                if (valid.length === 0) return '';
+                if (valid.length === 1) {
+                    const m = members.value.find(x => x.id == valid[0][0]);
+                    return m ? `${m.name} 付款` : '';
+                }
+                return `${valid.length} 人付款`;
             }
 
             const memberStats = computed(() => {
@@ -366,8 +347,9 @@
                 return result;
             });
 
+            // ✅ 3️⃣ 專案排序依建立順序 (ascending: true)
             async function fetchProjects() {
-                const { data } = await client.from('projects').select('*').order('created_at', { ascending: false });
+                const { data } = await client.from('projects').select('*').order('created_at', { ascending: true });
                 projects.value = data || [];
             }
 
@@ -395,13 +377,12 @@
                 projectMeta.value = p || {};
                 const { data: m } = await client.from('members').select('*').eq('project_id', currentProjectId.value).order('id');
                 members.value = m || [];
-                // 📊 七、依照建立順序排序
                 const { data: e } = await client.from('expenses').select('*').eq('project_id', currentProjectId.value).order('created_at', { ascending: true });
                 expenses.value = e || [];
             }
 
             async function addMember() {
-                const { data } = await client.from('members').insert({ project_id: currentProjectId.value, name: `成員${members.value.length + 1}` });
+                await client.from('members').insert({ project_id: currentProjectId.value, name: `成員${members.value.length + 1}` });
                 loadData();
             }
 
@@ -475,19 +456,16 @@
             async function submitExpense() {
                 let p = {}, s = {};
                 const totalCents = Math.round(form.value.amount * 100);
-
                 if (form.value.pMode === 'equal') {
                     const avg = Math.floor(totalCents / form.value.pList.length);
                     form.value.pList.forEach(id => p[id] = avg / 100);
                     p[form.value.pList[0]] = (avg + (totalCents % form.value.pList.length)) / 100;
                 } else p = form.value.manualP;
-
                 if (form.value.sMode === 'equal') {
                     const avg = Math.floor(totalCents / form.value.sList.length);
                     form.value.sList.forEach(id => s[id] = avg / 100);
                     s[form.value.sList[0]] = (avg + (totalCents % form.value.sList.length)) / 100;
                 } else s = form.value.manualS;
-
                 const payload = { project_id: currentProjectId.value, title: form.value.title, amount: form.value.amount, date: form.value.date, payers: p, split_details: s };
                 if(isEditing.value) await client.from('expenses').update(payload).eq('id', editingExpenseId.value);
                 else await client.from('expenses').insert(payload);
@@ -527,7 +505,7 @@
                 setTimeout(() => showToast.value = false, 2000);
             }
 
-            return { projects, currentProjectId, projectMeta, members, expenses, editingProjectId, editingProjectName, editingProjectDate, showModal, showSettlement, isEditing, form, totalExpense, isValid, settlement, isLocked, pin, pinContext, adminPass, showPassSettings, newProjectTitle, memberStats, formatDate, getPayerName, saveProjectName, startEditProject, deleteProject, createProject, enterProject, backToHome, pressPin, closePinPad, triggerPassSetup, addMember, updateMember, deleteMember, openAddExpense, openEditExpense, toggleMemberPay, toggleMemberSplit, toggleAllSplit, submitExpense, deleteExpense, copyLink, showToast };
+            return { projects, currentProjectId, projectMeta, members, expenses, editingProjectId, editingProjectName, editingProjectDate, showModal, showSettlement, isEditing, form, totalExpense, isValid, settlement, isLocked, pin, pinContext, adminPass, showPassSettings, newProjectTitle, memberStats, formatDate, saveProjectName, startEditProject, deleteProject, createProject, enterProject, backToHome, pressPin, closePinPad, triggerPassSetup, addMember, updateMember, deleteMember, openAddExpense, openEditExpense, toggleMemberPay, toggleMemberSplit, toggleAllSplit, submitExpense, deleteExpense, copyLink, showToast, getSplitCount, getPayerDisplay };
         }
     }).mount('#app');
 </script>
