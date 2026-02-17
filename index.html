@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Split. Midnight Matte 6.1</title>
+    <title>Split. Midnight Matte 6.2</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
@@ -15,11 +15,11 @@
         
         :root {
             --bg: #0F1115;
-            --card: rgba(255,255,255,0.04);
             --primary: #F5F7FA;
         }
 
-        html {
+        /* ✅ 1️⃣ 防止雙擊縮放 & 隱藏滾軸 */
+        html, body {
             -webkit-text-size-adjust: 100%;
             overflow-x: hidden;
             width: 100%;
@@ -27,11 +27,16 @@
             color: var(--primary);
             font-family: 'Noto Sans TC', sans-serif;
             -webkit-font-smoothing: antialiased;
+            touch-action: manipulation;
         }
 
         body { display: flex; justify-content: center; }
 
         #app { width: 100%; max-width: 390px; margin: 0 auto; min-height: 100vh; position: relative; }
+
+        /* ✅ 3️⃣ 隱藏 scrollbar (方法 A) */
+        main::-webkit-scrollbar { display: none; }
+        main { -ms-overflow-style: none; scrollbar-width: none; }
 
         .f-light { font-weight: 300; }
         .f-medium { font-weight: 500; }
@@ -45,21 +50,14 @@
             backdrop-filter: blur(12px);
         }
         
-        /* ✅ 2️⃣ PIN 鍵盤縮小 */
         .pin-btn { 
-            width: 72px;
-            height: 72px;
-            border-radius: 22px;
-            font-size: 22px;
-            font-weight: 300;
-            background: rgba(255,255,255,0.06);
-            color: #F5F7FA;
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255,255,255,0.08);
-            transition: all .2s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            width: 72px; height: 72px; border-radius: 22px; font-size: 22px; font-weight: 300;
+            background: rgba(255,255,255,0.06); color: #F5F7FA;
+            backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.08);
+            /* ✅ 1️⃣ 調整 transition 避免殘影 */
+            transition: transform .15s ease, background .15s ease;
+            display: flex; align-items: center; justify-content: center;
+            touch-action: manipulation;
         }
         .pin-btn:active { transform: scale(0.95); background: rgba(255,255,255,0.12); }
         
@@ -93,17 +91,17 @@
 
     <div v-if="!currentProjectId" class="flex flex-col pt-12 animate-in fade-in">
         <header class="flex justify-between items-center mb-10 px-1">
-            <h1 class="text-3xl f-light tracking-tight text-white">Split.</h1>
+            <h1 class="text-2xl f-light tracking-[-0.02em] text-white/90">Split.</h1>
             <button @click="triggerPassSetup" class="p-3 bg-white/5 rounded-2xl text-gray-400 border border-white/5"><i data-lucide="shield"></i></button>
         </header>
 
         <div class="flex items-center gap-3 w-full mb-12">
             <input v-model="newProjectTitle" type="text" placeholder="去哪裡旅行？" @keyup.enter="createProject"
-                   class="w-full bg-white/5 border border-white/5 rounded-2xl px-6 py-5 text-lg outline-none f-light text-white">
+                   class="w-full bg-white/5 border border-white/5 rounded-2xl px-6 py-4 text-base outline-none f-light text-white">
             
             <button @click="createProject" 
                     class="w-14 h-14 bg-white/10 rounded-2xl flex items-center justify-center transition-all flex-shrink-0 border border-white/5 active:scale-95">
-                <i data-lucide="plus" class="w-4 h-4 text-white/10"></i>
+                <i data-lucide="plus" class="w-5 h-5 text-white/40"></i>
             </button>
         </div>
 
@@ -137,7 +135,7 @@
             <button @click="copyLink" class="p-2 text-gray-500 hover:text-white"><i data-lucide="link" class="w-5 h-5"></i></button>
         </header>
 
-        <main class="flex-1 overflow-y-auto pt-4 pb-36">
+        <main class="flex-1 overflow-y-auto pt-4 pb-36 pr-3">
             <div class="mb-10 px-2 text-center">
                 <h3 class="text-xs text-gray-500 tracking-[0.3em] uppercase f-medium mb-6">個人支出</h3>
                 <div class="space-y-3 max-w-[240px] mx-auto bg-white/5 p-5 rounded-[24px] border border-white/10">
@@ -318,13 +316,11 @@
                 return new Date(dateStr).toISOString().split('T')[0];
             }
 
-            // ✅ 4️⃣ 分攤人數只算金額非 0 的人
             function getSplitCount(exp) {
                 if (!exp.split_details) return 0;
                 return Object.values(exp.split_details).filter(v => Number(v) > 0).length;
             }
 
-            // ✅ 5️⃣ 付款人顯示邏輯（支持多人付款）
             function getPayerDisplay(exp) {
                 if (!exp.payers) return '';
                 const valid = Object.entries(exp.payers).filter(([id, v]) => Number(v) > 0);
@@ -347,7 +343,6 @@
                 return result;
             });
 
-            // ✅ 3️⃣ 專案排序依建立順序 (ascending: true)
             async function fetchProjects() {
                 const { data } = await client.from('projects').select('*').order('created_at', { ascending: true });
                 projects.value = data || [];
