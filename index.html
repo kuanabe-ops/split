@@ -3,311 +3,317 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>專業多人分帳系統</title>
+    <title>極簡分帳</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
     <script src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
 
     <style>
-        body { background-color: #f2f2f7; -webkit-tap-highlight-color: transparent; }
-        .safe-area-bottom { padding-bottom: env(safe-area-inset-bottom); }
-        input[type="number"]::-webkit-inner-spin-button { display: none; }
+        body { background-color: #FAFAFA; color: #171717; font-family: -apple-system, system-ui, sans-serif; }
+        .card { @apply bg-white border border-gray-200 shadow-sm rounded-xl; }
+        .btn-black { @apply bg-black text-white hover:bg-gray-800 disabled:opacity-30 rounded-xl px-4 py-3 font-medium transition active:scale-95 flex items-center justify-center gap-2; }
+        .input-minimal { @apply w-full bg-gray-50 border-none rounded-lg p-3 outline-none focus:ring-1 focus:ring-black/20; }
+        input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
     </style>
 </head>
 <body>
 
-<div id="app" class="max-w-md mx-auto min-h-screen bg-white shadow-xl relative flex flex-col">
+<div id="app" class="max-w-md mx-auto min-h-screen relative flex flex-col">
 
-    <div v-if="!projectId" class="p-8 flex flex-col justify-center flex-1">
-        <h1 class="text-4xl font-black text-center mb-2 text-blue-600">分帳神器</h1>
-        <p class="text-center text-gray-400 mb-8">管理專案、成員與複雜帳務</p>
-        <div class="space-y-4">
-            <input v-model="newProjectName" type="text" placeholder="輸入專案名稱 (如: 東京之旅)" class="w-full p-4 border rounded-xl bg-gray-50 focus:ring-2 focus:ring-blue-500 outline-none">
-            <button @click="createProject" class="w-full bg-blue-600 text-white py-4 rounded-xl font-bold shadow-lg active:scale-95 transition">建立新專案</button>
+    <div v-if="!currentProjectId" class="p-6 flex flex-col h-screen">
+        <header class="mb-8 mt-4">
+            <h1 class="text-3xl font-bold tracking-tight">專案列表</h1>
+            <p class="text-gray-400 text-sm">選擇或建立一個分帳專案</p>
+        </header>
+
+        <div class="flex-1 overflow-y-auto space-y-3 pb-20">
+            <div v-for="p in projects" :key="p.id" @click="enterProject(p.id)" class="card p-4 flex justify-between items-center cursor-pointer hover:border-gray-400 group">
+                <div>
+                    <h3 class="font-bold text-lg">{{ p.name }}</h3>
+                    <p class="text-xs text-gray-400">建立日期：{{ formatDate(p.created_at) }}</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button @click.stop="editProject(p)" class="p-2 text-gray-400 hover:text-black"><i data-lucide="edit-3" class="w-4 h-4"></i></button>
+                    <button @click.stop="deleteProject(p.id)" class="p-2 text-gray-400 hover:text-red-500"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                </div>
+            </div>
+        </div>
+
+        <div class="fixed bottom-6 left-0 right-0 px-6 max-w-md mx-auto">
+            <button @click="openCreateModal" class="btn-black w-full shadow-lg">建立新專案</button>
         </div>
     </div>
 
-    <div v-else class="flex flex-col flex-1">
-        <header class="bg-blue-600 text-white p-4 sticky top-0 z-30">
-            <div class="flex justify-between items-center">
-                <div>
-                    <h2 class="font-bold text-xl">{{ projectName }}</h2>
-                    <p class="text-xs opacity-70" @click="copyLink">點此複製網址分享給成員 🔗</p>
-                </div>
-                <button @click="currentView = 'settle'" class="bg-white/20 px-4 py-2 rounded-lg font-bold text-sm backdrop-blur-md">結算結果</button>
-            </div>
+    <div v-else class="flex flex-col h-screen">
+        <header class="bg-white/80 backdrop-blur-md sticky top-0 z-20 border-b px-4 py-3 flex justify-between items-center">
+            <button @click="exitProject" class="p-2"><i data-lucide="chevron-left"></i></button>
+            <h2 class="font-bold truncate">{{ projectMeta.name }}</h2>
+            <button @click="shareLink" class="p-2"><i data-lucide="share-2" class="w-5 h-5"></i></button>
         </header>
 
-        <nav class="flex border-b bg-white sticky top-[68px] z-20">
-            <button @click="currentView = 'list'" :class="currentView === 'list' ? 'border-b-4 border-blue-600 text-blue-600' : 'text-gray-400'" class="flex-1 py-4 font-bold transition">帳務清單</button>
-            <button @click="currentView = 'members'" :class="currentView === 'members' ? 'border-b-4 border-blue-600 text-blue-600' : 'text-gray-400'" class="flex-1 py-4 font-bold transition">成員管理</button>
-        </nav>
+        <main class="flex-1 overflow-y-auto p-4 pb-24">
+            <div class="card p-5 mb-6 bg-black text-white border-none">
+                <p class="text-gray-400 text-xs uppercase mb-1">總支出金額</p>
+                <h3 class="text-3xl font-bold">${{ totalExpense.toLocaleString() }}</h3>
+                <button @click="showSettlement = true" class="mt-4 text-sm bg-white/10 px-4 py-2 rounded-lg font-bold">查看分帳結果</button>
+            </div>
 
-        <main v-if="currentView === 'list'" class="p-4 space-y-3 flex-1">
-            <div v-if="expenses.length === 0" class="py-20 text-center text-gray-300">
-                目前尚無紀錄<br>請點擊右下角按鈕新增
-            </div>
-            <div v-for="exp in expenses" :key="exp.id" class="bg-white border p-4 rounded-xl shadow-sm">
-                <div class="flex justify-between items-start">
-                    <h4 class="font-bold text-gray-800 text-lg">{{ exp.title }}</h4>
-                    <span class="text-blue-600 font-black text-xl">${{ exp.amount }}</span>
-                </div>
-                <div class="flex justify-between items-end mt-2">
-                    <div class="text-xs text-gray-500">
-                        <div>🕒 {{ exp.date }}</div>
-                        <div>👤 付款人: {{ getPayerDisplay(exp.payers) }}</div>
-                    </div>
-                    <button @click="deleteExpense(exp.id)" class="text-red-400 text-xs">刪除</button>
-                </div>
-            </div>
-            <div class="h-24"></div>
-        </main>
-
-        <main v-if="currentView === 'members'" class="p-4 space-y-4">
-            <div class="grid grid-cols-2 gap-2">
-                <div v-for="m in members" :key="m.id" class="bg-gray-100 p-3 rounded-lg flex justify-between">
-                    <span class="font-bold">{{ m.name }}</span>
-                </div>
-            </div>
-            <div class="flex gap-2">
-                <input v-model="newMemberName" type="text" placeholder="新成員姓名" class="flex-1 p-3 border rounded-lg outline-none">
-                <button @click="addMember" class="bg-green-500 text-white px-6 rounded-lg font-bold">加入</button>
-            </div>
-        </main>
-
-        <div v-if="currentView === 'settle'" class="fixed inset-0 bg-white z-50 p-6 overflow-y-auto">
-            <button @click="currentView = 'list'" class="text-blue-600 font-bold mb-6">✕ 關閉結算</button>
-            <h2 class="text-3xl font-black mb-6">結算報告</h2>
-            
             <section class="mb-8">
-                <h3 class="text-gray-400 font-bold mb-3 uppercase tracking-widest text-sm">個人支出統計</h3>
-                <div class="space-y-2">
-                    <div v-for="s in settlement.balances" class="flex justify-between p-3 bg-gray-50 rounded-lg">
-                        <span class="font-bold">{{ s.name }}</span>
-                        <span :class="s.amount >= 0 ? 'text-green-600' : 'text-red-500'" class="font-mono font-bold">
-                            {{ s.amount >= 0 ? '應收' : '應付' }} ${{ Math.abs(Math.round(s.amount)) }}
-                        </span>
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="font-bold text-gray-400 text-xs uppercase">成員</h3>
+                    <button @click="addMember" class="text-xs font-bold text-blue-600">+ 新增</button>
+                </div>
+                <div class="flex flex-wrap gap-2">
+                    <div v-for="m in members" :key="m.id" class="bg-white border rounded-full px-4 py-1.5 flex items-center gap-2 text-sm">
+                        <span v-if="!m.editing" @click="m.editing = true">{{ m.name }}</span>
+                        <input v-else v-model="m.name" @blur="updateMember(m)" @keyup.enter="updateMember(m)" class="w-16 outline-none border-b border-black">
+                        <button @click="deleteMember(m.id)" class="text-gray-300 hover:text-red-500">×</button>
                     </div>
                 </div>
             </section>
 
             <section>
-                <h3 class="text-gray-400 font-bold mb-3 uppercase tracking-widest text-sm">建議轉帳方案</h3>
-                <div v-if="settlement.transfers.length === 0" class="text-center py-10 text-gray-300">目前帳務平衡，不需轉帳</div>
-                <div v-for="t in settlement.transfers" class="bg-blue-50 p-4 rounded-xl border border-blue-100 mb-3 flex items-center justify-between">
-                    <span><b>{{ t.from }}</b> 轉給 <b>{{ t.to }}</b></span>
-                    <span class="text-blue-600 font-black text-xl">${{ Math.round(t.amount) }}</span>
+                <h3 class="font-bold text-gray-400 text-xs uppercase mb-3">明細</h3>
+                <div v-for="exp in expenses" :key="exp.id" @click="openEditExpense(exp)" class="card p-4 mb-3 flex justify-between items-center">
+                    <div>
+                        <h4 class="font-bold">{{ exp.title }}</h4>
+                        <p class="text-xs text-gray-400">{{ exp.date }} · {{ getPayerName(exp.payers) }}</p>
+                    </div>
+                    <span class="font-bold text-lg">${{ Number(exp.amount).toLocaleString() }}</span>
                 </div>
             </section>
+        </main>
+
+        <button @click="openAddExpense" class="fixed bottom-6 right-6 w-14 h-14 bg-black text-white rounded-full shadow-xl flex items-center justify-center z-30">+</button>
+
+        <div v-if="showModal" class="fixed inset-0 bg-black/50 z-40 flex items-end sm:items-center justify-center p-0 sm:p-4">
+            <div class="bg-white w-full max-w-md h-[85vh] sm:h-auto rounded-t-2xl sm:rounded-2xl flex flex-col overflow-hidden">
+                <div class="p-4 border-b flex justify-between items-center">
+                    <span class="font-bold">{{ isEditing ? '編輯紀錄' : '新增紀錄' }}</span>
+                    <button @click="showModal = false">✕</button>
+                </div>
+                <div class="p-5 overflow-y-auto space-y-4">
+                    <input v-model="form.title" type="text" placeholder="項目" class="input-minimal">
+                    <div class="flex gap-2">
+                        <input v-model.number="form.amount" type="number" placeholder="金額" class="flex-1 input-minimal">
+                        <input v-model="form.date" type="date" class="w-1/3 input-minimal text-xs">
+                    </div>
+
+                    <div class="p-4 bg-gray-50 rounded-xl space-y-4">
+                        <div>
+                            <label class="text-xs font-bold text-gray-400">付款人方式</label>
+                            <select v-model="form.pMode" class="w-full mt-1 p-2 rounded border">
+                                <option value="single">單人付款</option>
+                                <option value="multi">多人手動</option>
+                            </select>
+                            <div v-if="form.pMode==='multi'" class="mt-2 space-y-2">
+                                <div v-for="m in members" class="flex justify-between text-sm">
+                                    <span>{{m.name}}</span>
+                                    <input v-model.number="form.multiP[m.id]" type="number" class="w-20 border-b text-right">
+                                </div>
+                                <p :class="checkPayerSum ? 'text-green-600':'text-red-500'" class="text-right text-xs">合計: {{currentPayerSum}} / {{form.amount}}</p>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="text-xs font-bold text-gray-400">分帳方式</label>
+                            <select v-model="form.sMode" class="w-full mt-1 p-2 rounded border">
+                                <option value="equal">平均分攤</option>
+                                <option value="manual">手動金額</option>
+                            </select>
+                            <div v-if="form.sMode==='manual'" class="mt-2 space-y-2">
+                                <div v-for="m in members" class="flex justify-between text-sm">
+                                    <span>{{m.name}}</span>
+                                    <input v-model.number="form.manualS[m.id]" type="number" class="w-20 border-b text-right">
+                                </div>
+                                <p :class="checkSplitSum ? 'text-green-600':'text-red-500'" class="text-right text-xs">合計: {{currentSplitSum}} / {{form.amount}}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="p-5 border-t flex gap-2">
+                    <button v-if="isEditing" @click="deleteExpense" class="bg-red-50 text-red-500 p-3 rounded-xl">刪除</button>
+                    <button @click="submitExpense" :disabled="!isValid" class="flex-1 btn-black">儲存</button>
+                </div>
+            </div>
         </div>
 
-        <button v-if="currentView === 'list'" @click="openModal" class="fixed bottom-8 right-8 w-16 h-16 bg-blue-600 text-white rounded-full shadow-2xl text-3xl font-bold active:scale-90 transition-transform z-40">+</button>
-
-        <div v-if="isModalOpen" class="fixed inset-0 bg-black/60 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4">
-            <div class="bg-white w-full max-w-md rounded-t-2xl sm:rounded-2xl flex flex-col max-h-[90vh]">
-                <div class="p-4 border-b flex justify-between items-center bg-gray-50">
-                    <span class="font-black text-lg">新增帳務</span>
-                    <button @click="isModalOpen = false" class="text-2xl text-gray-400">&times;</button>
-                </div>
-
-                <div class="p-5 overflow-y-auto space-y-4">
-                    <input v-model="form.title" type="text" placeholder="項目名稱 (如: 晚餐)" class="w-full p-3 border rounded-xl bg-gray-50 outline-none">
-                    <div class="flex gap-2">
-                        <input v-model.number="form.amount" type="number" placeholder="金額" class="flex-1 p-3 border rounded-xl bg-gray-50 outline-none">
-                        <input v-model="form.date" type="date" class="w-1/3 p-3 border rounded-xl bg-gray-50 text-sm outline-none">
-                    </div>
-
-                    <div class="p-4 border rounded-xl space-y-3">
-                        <div class="flex justify-between items-center">
-                            <label class="font-bold text-sm">誰付款的？</label>
-                            <div class="bg-gray-200 p-1 rounded-lg flex text-xs font-bold cursor-pointer">
-                                <div @click="form.pMode='single'" :class="form.pMode==='single'?'bg-white shadow text-blue-600':''" class="px-3 py-1 rounded-md transition">單人</div>
-                                <div @click="form.pMode='multi'" :class="form.pMode==='multi'?'bg-white shadow text-blue-600':''" class="px-3 py-1 rounded-md transition">手動</div>
-                            </div>
-                        </div>
-                        <select v-if="form.pMode==='single'" v-model="form.singleP" class="w-full p-2 border rounded-lg">
-                            <option v-for="m in members" :value="m.id">{{ m.name }}</option>
-                        </select>
-                        <div v-else class="space-y-2">
-                            <div v-for="m in members" class="flex justify-between items-center">
-                                <span class="text-sm">{{ m.name }}</span>
-                                <input v-model.number="form.multiP[m.id]" type="number" placeholder="0" class="w-24 p-2 border rounded text-right">
-                            </div>
+        <div v-if="showSettlement" class="fixed inset-0 bg-white z-50 flex flex-col p-6 overflow-y-auto">
+            <div class="flex justify-between mb-8"><h2 class="text-2xl font-bold">分帳結果</h2><button @click="showSettlement=false">✕</button></div>
+            <div class="space-y-6">
+                <section>
+                    <h3 class="text-xs font-bold text-gray-400 mb-2">每人分攤總額</h3>
+                    <div v-for="s in settlement.details" class="flex justify-between py-2 border-b">
+                        <span>{{s.name}}</span>
+                        <div class="text-right">
+                            <p class="font-bold">${{Math.round(s.spent)}}</p>
+                            <p :class="s.net>=0?'text-green-600':'text-red-500'" class="text-xs">{{s.net>=0?'應收':'應付'}} {{Math.abs(Math.round(s.net))}}</p>
                         </div>
                     </div>
-
-                    <div class="p-4 border rounded-xl space-y-3">
-                        <div class="flex justify-between items-center">
-                            <label class="font-bold text-sm">如何分帳？</label>
-                            <div class="bg-gray-200 p-1 rounded-lg flex text-xs font-bold cursor-pointer">
-                                <div @click="form.sMode='equal'" :class="form.sMode==='equal'?'bg-white shadow text-blue-600':''" class="px-3 py-1 rounded-md transition">平均</div>
-                                <div @click="form.sMode='manual'" :class="form.sMode==='manual'?'bg-white shadow text-blue-600':''" class="px-3 py-1 rounded-md transition">手動</div>
-                            </div>
-                        </div>
-                        <div v-if="form.sMode==='equal'" class="flex flex-wrap gap-2">
-                            <div v-for="m in members" @click="toggleSplit(m.id)" :class="form.sList.includes(m.id)?'bg-blue-600 text-white':'bg-gray-100 text-gray-400'" class="px-4 py-2 rounded-full text-xs font-bold transition">
-                                {{ m.name }}
-                            </div>
-                        </div>
-                        <div v-else class="space-y-2">
-                            <div v-for="m in members" class="flex justify-between items-center">
-                                <span class="text-sm">{{ m.name }}</span>
-                                <input v-model.number="form.manualS[m.id]" type="number" placeholder="0" class="w-24 p-2 border rounded text-right">
-                            </div>
-                        </div>
+                </section>
+                <section>
+                    <h3 class="text-xs font-bold text-gray-400 mb-2">轉帳路徑</h3>
+                    <div v-for="t in settlement.transfers" class="p-4 bg-gray-50 rounded-xl flex justify-between items-center mb-2">
+                        <span><b>{{t.from}}</b> → <b>{{t.to}}</b></span>
+                        <span class="font-bold text-lg">${{Math.round(t.amount)}}</span>
                     </div>
-                </div>
-
-                <div class="p-5 safe-area-bottom">
-                    <button @click="save" class="w-full bg-blue-600 text-white py-4 rounded-xl font-bold shadow-lg active:scale-95 transition">完成記帳</button>
-                </div>
+                </section>
             </div>
         </div>
     </div>
 </div>
 
 <script>
-    // --- 已幫你填好你的專案資訊 ---
     const SB_URL = 'https://kwrefnmhjuwnvfipxdyq.supabase.co';
     const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt3cmVmbm1oanV3bnZmaXB4ZHlxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEyOTQ4NTksImV4cCI6MjA4Njg3MDg1OX0.jthw2efO6SSzIm0PpY0scQ9cBrAtByEzxxrzz1YOHlc';
     const client = supabase.createClient(SB_URL, SB_KEY);
-
-    const { createApp, ref, onMounted, computed } = Vue;
+    const { createApp, ref, computed, onMounted, nextTick } = Vue;
 
     createApp({
         setup() {
-            const projectId = ref(null);
-            const projectName = ref('');
-            const newProjectName = ref('');
+            const currentProjectId = ref(null);
+            const projects = ref([]);
+            const projectMeta = ref({});
             const members = ref([]);
             const expenses = ref([]);
-            const currentView = ref('list');
-            const isModalOpen = ref(false);
-            const newMemberName = ref('');
-
-            const form = ref({
-                title: '', amount: '', date: '', pMode: 'single', singleP: '', multiP: {}, sMode: 'equal', sList: [], manualS: {}
-            });
+            const showModal = ref(false);
+            const showSettlement = ref(false);
+            const isEditing = ref(false);
+            const editingId = ref(null);
+            const form = ref({ title: '', amount: 0, date: '', pMode: 'single', singleP: '', multiP: {}, sMode: 'equal', sList: [], manualS: {} });
 
             onMounted(() => {
-                const pid = new URLSearchParams(window.location.search).get('project_id');
-                if(pid) {
-                    projectId.value = pid;
-                    init();
-                    listen();
-                }
+                const pid = new URLSearchParams(window.location.search).get('pid');
+                if (pid) enterProject(pid);
+                else fetchProjects();
+                nextTick(() => lucide.createIcons());
             });
 
-            async function init() {
-                const { data: p } = await client.from('projects').select('*').eq('id', projectId.value).single();
-                if(p) projectName.value = p.name;
-                const { data: m } = await client.from('members').select('*').eq('project_id', projectId.value);
-                members.value = m || [];
-                refresh();
+            async function fetchProjects() {
+                const { data } = await client.from('projects').select('*').order('created_at', { ascending: false });
+                projects.value = data || [];
+                nextTick(() => lucide.createIcons());
             }
 
-            async function refresh() {
-                const { data } = await client.from('expenses').select('*').eq('project_id', projectId.value).order('created_at', {ascending: false});
-                expenses.value = data || [];
+            async function enterProject(id) {
+                currentProjectId.value = id;
+                window.history.pushState({}, '', `?pid=${id}`);
+                const { data: p } = await client.from('projects').select('*').eq('id', id).single();
+                projectMeta.value = p || {};
+                loadData();
+                client.channel(id).on('postgres_changes', { event: '*', schema: 'public' }, () => loadData()).subscribe();
             }
 
-            function listen() {
-                client.channel('any').on('postgres_changes', {event:'*', schema:'public'}, () => {
-                    init();
-                }).subscribe();
+            async function loadData() {
+                const { data: m } = await client.from('members').select('*').eq('project_id', currentProjectId.value).order('id');
+                members.value = (m || []).map(x => ({...x, editing: false}));
+                const { data: e } = await client.from('expenses').select('*').eq('project_id', currentProjectId.value).order('date', {ascending: false});
+                expenses.value = e || [];
+                nextTick(() => lucide.createIcons());
             }
 
-            async function createProject() {
-                if(!newProjectName.value) return;
-                const { data } = await client.from('projects').insert({name: newProjectName.value}).select().single();
-                window.location.search = `?project_id=${data.id}`;
+            async function openCreateModal() {
+                const name = prompt('專案名稱：');
+                if (name) {
+                    const { data } = await client.from('projects').insert({ name }).select().single();
+                    enterProject(data.id);
+                }
+            }
+
+            async function deleteProject(id) {
+                if (confirm('確定刪除專案？')) { await client.from('projects').delete().eq('id', id); fetchProjects(); }
+            }
+
+            async function editProject(p) {
+                const n = prompt('修改名稱', p.name);
+                if (n) { await client.from('projects').update({name: n}).eq('id', p.id); fetchProjects(); }
             }
 
             async function addMember() {
-                if(!newMemberName.value) return;
-                await client.from('members').insert({project_id: projectId.value, name: newMemberName.value});
-                newMemberName.value = '';
+                const name = `成員 ${members.value.length + 1}`;
+                await client.from('members').insert({ project_id: currentProjectId.value, name });
+                loadData();
             }
 
-            function openModal() {
-                if(members.value.length === 0) return alert('請先加入成員');
-                form.value = {
-                    title: '', amount: '', date: new Date().toISOString().split('T')[0],
-                    pMode: 'single', singleP: members.value[0].id, multiP: {},
-                    sMode: 'equal', sList: members.value.map(m=>m.id), manualS: {}
-                };
-                isModalOpen.value = true;
+            async function updateMember(m) {
+                m.editing = false;
+                await client.from('members').update({name: m.name}).eq('id', m.id);
             }
 
-            function toggleSplit(id) {
-                const idx = form.value.sList.indexOf(id);
-                idx > -1 ? form.value.sList.splice(idx, 1) : form.value.sList.push(id);
+            async function deleteMember(id) {
+                if(confirm('刪除成員？')) { await client.from('members').delete().eq('id', id); loadData(); }
             }
 
-            async function save() {
-                const f = form.value;
-                if(!f.title || !f.amount) return alert('請填寫完整');
+            function openAddExpense() {
+                isEditing.value = false;
+                form.value = { title: '', amount: '', date: new Date().toISOString().split('T')[0], pMode: 'single', singleP: members.value[0]?.id, multiP: {}, sMode: 'equal', sList: members.value.map(m=>m.id), manualS: {} };
+                showModal.value = true;
+            }
+
+            function openEditExpense(e) {
+                isEditing.value = true;
+                editingId.value = e.id;
+                const pKeys = Object.keys(e.payers);
+                form.value = { title: e.title, amount: e.amount, date: e.date, pMode: pKeys.length>1?'multi':'single', singleP: pKeys[0], multiP: e.payers, sMode: 'manual', manualS: e.split_details };
+                showModal.value = true;
+            }
+
+            const currentPayerSum = computed(() => form.value.pMode==='single'?form.value.amount : Object.values(form.value.multiP).reduce((a,b)=>a+(b||0),0));
+            const currentSplitSum = computed(() => form.value.sMode==='equal'?form.value.amount : Object.values(form.value.manualS).reduce((a,b)=>a+(b||0),0));
+            const checkPayerSum = computed(() => Math.abs(currentPayerSum.value - form.value.amount) < 0.1);
+            const checkSplitSum = computed(() => Math.abs(currentSplitSum.value - form.value.amount) < 0.1);
+            const isValid = computed(() => form.value.title && form.value.amount > 0 && checkPayerSum.value && checkSplitSum.value);
+
+            async function submitExpense() {
+                let p = {}, s = {};
+                if(form.value.pMode==='single') p[form.value.singleP] = form.value.amount;
+                else p = form.value.multiP;
                 
-                let payObj = {};
-                if(f.pMode === 'single') payObj[f.singleP] = f.amount;
-                else payObj = f.multiP;
+                if(form.value.sMode==='equal') {
+                    const avg = form.value.amount / members.value.length;
+                    members.value.forEach(m => s[m.id] = avg);
+                } else s = form.value.manualS;
 
-                let splitObj = {};
-                if(f.sMode === 'equal') {
-                    const avg = f.amount / f.sList.length;
-                    f.sList.forEach(id => splitObj[id] = avg);
-                } else splitObj = f.manualS;
-
-                await client.from('expenses').insert({
-                    project_id: projectId.value, title: f.title, amount: f.amount,
-                    date: f.date, payers: payObj, split_details: splitObj
-                });
-                isModalOpen.value = false;
+                const data = { project_id: currentProjectId.value, title: form.value.title, amount: form.value.amount, date: form.value.date, payers: p, split_details: s };
+                if(isEditing.value) await client.from('expenses').update(data).eq('id', editingId.value);
+                else await client.from('expenses').insert(data);
+                showModal.value = false;
+                loadData();
             }
 
-            async function deleteExpense(id) {
-                if(confirm('刪除此筆帳務？')) await client.from('expenses').delete().eq('id', id);
-            }
+            async function deleteExpense() { if(confirm('刪除？')) { await client.from('expenses').delete().eq('id', editingId.value); showModal.value=false; loadData(); } }
 
+            const totalExpense = computed(() => expenses.value.reduce((a,b)=>a+Number(b.amount),0));
             const settlement = computed(() => {
-                const balances = {};
-                members.value.forEach(m => balances[m.id] = 0);
+                let b = {}; let sp = {};
+                members.value.forEach(m => { b[m.id]=0; sp[m.id]=0; });
                 expenses.value.forEach(e => {
-                    for(let id in e.payers) balances[id] = (balances[id] || 0) + Number(e.payers[id]);
-                    for(let id in e.split_details) balances[id] = (balances[id] || 0) - Number(e.split_details[id]);
+                    for(let id in e.payers) b[id] += Number(e.payers[id]);
+                    for(let id in e.split_details) { b[id] -= Number(e.split_details[id]); sp[id] += Number(e.split_details[id]); }
                 });
-
-                const sorted = members.value.map(m => ({name: m.name, amount: balances[m.id] || 0}))
-                    .sort((a,b) => b.amount - a.amount);
-                
-                const transfers = [];
-                let d = sorted.filter(x => x.amount < -0.1), c = sorted.filter(x => x.amount > 0.1);
+                const details = members.value.map(m => ({ name: m.name, net: b[m.id], spent: sp[m.id] }));
+                let ts = []; let d = details.filter(x=>x.net < -1).sort((a,b)=>a.net-b.net);
+                let c = details.filter(x=>x.net > 1).sort((a,b)=>b.net-a.net);
                 let i=0, j=0;
-                while(i < d.length && j < c.length) {
-                    let amt = Math.min(Math.abs(d[i].amount), c[j].amount);
-                    transfers.push({from: d[i].name, to: c[j].name, amount: amt});
-                    d[i].amount += amt; c[j].amount -= amt;
-                    if(Math.abs(d[i].amount) < 0.1) i++;
-                    if(c[j].amount < 0.1) j++;
+                while(i<d.length && j<c.length) {
+                    let amt = Math.min(Math.abs(d[i].net), c[j].net);
+                    ts.push({from: d[i].name, to: c[j].name, amount: amt});
+                    d[i].net += amt; c[j].net -= amt;
+                    if(Math.abs(d[i].net)<1) i++; if(c[j].net<1) j++;
                 }
-                return { balances: sorted, transfers };
+                return { details, transfers: ts };
             });
 
-            function getPayerDisplay(p) {
-                const ids = Object.keys(p);
-                if(ids.length > 1) return '多人分擔';
-                return members.value.find(m => m.id == ids[0])?.name || '未知';
-            }
+            const getPayerName = (p) => { const k = Object.keys(p); return k.length>1 ? '多人' : members.value.find(m=>m.id==k[0])?.name; };
+            const formatDate = (s) => new Date(s).toLocaleDateString();
+            const exitProject = () => { currentProjectId.value = null; window.history.pushState({}, '', window.location.pathname); fetchProjects(); };
+            const shareLink = () => { navigator.clipboard.writeText(window.location.href); Toastify({text:"連結已複製"}).showToast(); };
 
-            function copyLink() {
-                navigator.clipboard.writeText(window.location.href);
-                Toastify({text:"分享連結已複製！", duration:2000, gravity:"top", position:"center", style:{background:"#2563eb", borderRadius:"10px"}}).showToast();
-            }
-
-            return { projectId, projectName, newProjectName, members, expenses, currentView, isModalOpen, newMemberName, form, settlement, createProject, addMember, openModal, toggleSplit, save, deleteExpense, getPayerDisplay, copyLink };
+            return { currentProjectId, projects, projectMeta, members, expenses, showModal, showSettlement, isEditing, form, currentPayerSum, currentSplitSum, checkPayerSum, checkSplitSum, isValid, totalExpense, settlement, openCreateModal, deleteProject, editProject, enterProject, exitProject, addMember, updateMember, deleteMember, openAddExpense, openEditExpense, submitExpense, deleteExpense, getPayerName, formatDate, shareLink };
         }
     }).mount('#app');
 </script>
