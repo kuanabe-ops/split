@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Split. Midnight Matte 6.2</title>
+    <title>Split. Midnight Matte 6.3</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
@@ -13,34 +13,23 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500&display=swap');
         
-        :root {
-            --bg: #0F1115;
-            --primary: #F5F7FA;
-        }
+        :root { --bg: #0F1115; --primary: #F5F7FA; }
 
-        /* ✅ 1️⃣ 防止雙擊縮放 & 隱藏滾軸 */
         html, body {
-            -webkit-text-size-adjust: 100%;
-            overflow-x: hidden;
-            width: 100%;
+            -webkit-text-size-adjust: 100%; overflow-x: hidden; width: 100%;
             background: radial-gradient(circle at top, #151922 0%, #0F1115 60%);
-            color: var(--primary);
-            font-family: 'Noto Sans TC', sans-serif;
-            -webkit-font-smoothing: antialiased;
-            touch-action: manipulation;
+            color: var(--primary); font-family: 'Noto Sans TC', sans-serif;
+            -webkit-font-smoothing: antialiased; touch-action: manipulation;
         }
 
         body { display: flex; justify-content: center; }
-
         #app { width: 100%; max-width: 390px; margin: 0 auto; min-height: 100vh; position: relative; }
 
-        /* ✅ 3️⃣ 隱藏 scrollbar (方法 A) */
         main::-webkit-scrollbar { display: none; }
         main { -ms-overflow-style: none; scrollbar-width: none; }
 
         .f-light { font-weight: 300; }
         .f-medium { font-weight: 500; }
-        
         * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
 
         .card {
@@ -54,13 +43,11 @@
             width: 72px; height: 72px; border-radius: 22px; font-size: 22px; font-weight: 300;
             background: rgba(255,255,255,0.06); color: #F5F7FA;
             backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.08);
-            /* ✅ 1️⃣ 調整 transition 避免殘影 */
             transition: transform .15s ease, background .15s ease;
             display: flex; align-items: center; justify-content: center;
             touch-action: manipulation;
         }
         .pin-btn:active { transform: scale(0.95); background: rgba(255,255,255,0.12); }
-        
         [v-cloak] { display: none; }
     </style>
 </head>
@@ -98,15 +85,13 @@
         <div class="flex items-center gap-3 w-full mb-12">
             <input v-model="newProjectTitle" type="text" placeholder="去哪裡旅行？" @keyup.enter="createProject"
                    class="w-full bg-white/5 border border-white/5 rounded-2xl px-6 py-4 text-base outline-none f-light text-white">
-            
-            <button @click="createProject" 
-                    class="w-14 h-14 bg-white/10 rounded-2xl flex items-center justify-center transition-all flex-shrink-0 border border-white/5 active:scale-95">
+            <button @click="createProject" class="w-14 h-14 bg-white/10 rounded-2xl flex items-center justify-center transition-all flex-shrink-0 border border-white/5 active:scale-95">
                 <i data-lucide="plus" class="w-5 h-5 text-white/40"></i>
             </button>
         </div>
 
         <div class="space-y-4">
-            <div v-for="p in projects" :key="p.id" @click="enterProject(p.id)" class="card p-6 flex justify-between items-center active:scale-[0.98] transition-all">
+            <div v-for="p in projects" :key="p.id" @click="enterProject(p.id)" class="card px-6 py-4 flex justify-between items-center active:scale-[0.98] transition-all">
                 <div class="flex-1 overflow-hidden mr-2">
                     <div v-if="editingProjectId === p.id" @click.stop class="space-y-2">
                         <input v-model="editingProjectName" class="w-full border-b border-white/20 bg-transparent outline-none py-1 text-base text-white">
@@ -128,7 +113,7 @@
         </div>
     </div>
 
-    <div v-else class="flex flex-col h-screen overflow-hidden">
+    <div v-else class="flex flex-col h-screen overflow-hidden w-full max-w-[390px] mx-auto">
         <header class="py-5 flex justify-between items-center bg-transparent sticky top-0 z-50">
             <button @click="backToHome" class="p-2 text-white/80"><i data-lucide="home" class="w-6 h-6"></i></button>
             <h2 class="text-lg f-medium tracking-tight truncate max-w-[220px] text-white">{{ projectMeta.name }}</h2>
@@ -188,12 +173,8 @@
             
             <div class="space-y-4 pb-10">
                 <input v-model="form.date" type="date" class="w-full text-sm text-gray-500 mb-2 outline-none bg-transparent f-medium">
-                
-                <input v-model="form.title" type="text" placeholder="消費項目"
-                       class="w-full bg-transparent border-b border-white/10 py-3 text-white outline-none">
-
-                <input v-model.number="form.amount" type="number" placeholder="金額"
-                       class="w-full bg-transparent border-b border-white/10 py-3 text-white outline-none">
+                <input v-model="form.title" type="text" placeholder="消費項目" class="w-full bg-transparent border-b border-white/10 py-3 text-white outline-none">
+                <input v-model.number="form.amount" type="number" placeholder="金額" class="w-full bg-transparent border-b border-white/10 py-3 text-white outline-none">
                 
                 <div class="pt-6 space-y-8">
                     <div>
@@ -236,6 +217,7 @@
                                 <span class="text-xs text-white">{{m.name}}</span>
                                 <input v-model.number="form.manualS[m.id]" type="number" class="w-24 bg-transparent text-right outline-none text-sm text-white border-b border-white/10">
                             </div>
+                            <p v-if="manualMismatch" class="text-red-400 text-xs mt-2 text-center">分攤總額與金額不符</p>
                         </div>
                     </div>
                 </div>
@@ -311,16 +293,8 @@
             const refreshIcons = () => nextTick(() => lucide.createIcons());
             watch([projects, members, expenses, showModal, showSettlement, isLocked, editingProjectId], refreshIcons);
 
-            const formatDate = (dateStr) => {
-                if(!dateStr) return '';
-                return new Date(dateStr).toISOString().split('T')[0];
-            }
-
-            function getSplitCount(exp) {
-                if (!exp.split_details) return 0;
-                return Object.values(exp.split_details).filter(v => Number(v) > 0).length;
-            }
-
+            const formatDate = (dateStr) => dateStr ? new Date(dateStr).toISOString().split('T')[0] : '';
+            function getSplitCount(exp) { return exp.split_details ? Object.values(exp.split_details).filter(v => Number(v) > 0).length : 0; }
             function getPayerDisplay(exp) {
                 if (!exp.payers) return '';
                 const valid = Object.entries(exp.payers).filter(([id, v]) => Number(v) > 0);
@@ -355,18 +329,14 @@
             }
 
             function startEditProject(p) { editingProjectId.value = p.id; editingProjectName.value = p.name; editingProjectDate.value = formatDate(p.created_at); }
-
             async function saveProjectName(id) {
                 if (editingProjectName.value.trim()) {
                     await client.from('projects').update({ name: editingProjectName.value, created_at: editingProjectDate.value }).eq('id', id);
                     editingProjectId.value = null; fetchProjects();
                 }
             }
-
             async function deleteProject(id) { if (confirm('確定刪除此專案？')) { await client.from('projects').delete().eq('id', id); fetchProjects(); } }
-
             async function enterProject(id) { currentProjectId.value = id; window.history.pushState({}, '', `?pid=${id}`); await loadData(); }
-
             async function loadData() {
                 const { data: p } = await client.from('projects').select('*').eq('id', currentProjectId.value).single();
                 projectMeta.value = p || {};
@@ -376,13 +346,21 @@
                 expenses.value = e || [];
             }
 
+            // ✅ 2️⃣ 新增成員邏輯（自動補號）
             async function addMember() {
-                await client.from('members').insert({ project_id: currentProjectId.value, name: `成員${members.value.length + 1}` });
+                const existingNumbers = members.value
+                    .map(m => {
+                        const match = m.name.match(/^成員(\d+)$/);
+                        return match ? Number(match[1]) : null;
+                    })
+                    .filter(n => n !== null);
+                let i = 1;
+                while (existingNumbers.includes(i)) { i++; }
+                await client.from('members').insert({ project_id: currentProjectId.value, name: `成員${i}` });
                 loadData();
             }
 
             function pressPin(n) { if (pin.value.length < 4) pin.value += n; if (pin.value.length === 4) handlePinComplete(); }
-
             async function handlePinComplete() {
                 if (isLocked.value) {
                     if (pin.value === adminPass.value) { isLocked.value = false; currentProjectId.value = null; pin.value = ''; window.history.pushState({}, '', window.location.pathname); fetchProjects(); }
@@ -419,12 +397,25 @@
                 showModal.value = true;
             }
 
+            // ✅ 3️⃣ 編輯花費時模式自動判定
+            function checkIfEqual(obj) {
+                const values = Object.values(obj).filter(v => Number(v) > 0);
+                if (values.length <= 1) return false;
+                return values.every(v => Math.abs(v - values[0]) < 0.01);
+            }
+
             function openEditExpense(e) {
                 isEditing.value = true; editingExpenseId.value = e.id;
+                const isPEqual = checkIfEqual(e.payers);
+                const isSEqual = checkIfEqual(e.split_details);
                 form.value = { 
                     title: e.title, amount: e.amount, date: e.date, 
-                    pMode: 'manual', pList: [], manualP: {...e.payers},
-                    sMode: 'manual', sList: [], manualS: {...e.split_details}
+                    pMode: isPEqual ? 'equal' : 'manual',
+                    pList: isPEqual ? Object.keys(e.payers).filter(id => e.payers[id] > 0) : [],
+                    manualP: {...e.payers},
+                    sMode: isSEqual ? 'equal' : 'manual',
+                    sList: isSEqual ? Object.keys(e.split_details).filter(id => e.split_details[id] > 0) : [],
+                    manualS: {...e.split_details}
                 };
                 members.value.forEach(m => { 
                     if (form.value.manualP[m.id] === undefined) form.value.manualP[m.id] = 0; 
@@ -433,7 +424,18 @@
                 showModal.value = true;
             }
 
-            const isValid = computed(() => form.value.title && form.value.amount > 0);
+            // ✅ 4️⃣ 手動金額校驗
+            const manualMismatch = computed(() => {
+                if (form.value.sMode !== 'manual') return false;
+                const totalManual = Object.values(form.value.manualS).reduce((a,b) => a + (Number(b) || 0), 0);
+                return Math.abs(totalManual - Number(form.value.amount)) > 0.01;
+            });
+
+            const isValid = computed(() => {
+                if (!form.value.title || form.value.amount <= 0) return false;
+                if (manualMismatch.value) return false;
+                return true;
+            });
 
             function toggleMemberPay(id) {
                 const idx = form.value.pList.indexOf(id);
@@ -474,8 +476,7 @@
             const totalExpense = computed(() => expenses.value.reduce((a,b)=>a + (Number(b.amount) || 0), 0));
 
             const settlement = computed(() => {
-                let bal = {}; 
-                members.value.forEach(m => bal[m.id]=0);
+                let bal = {}; members.value.forEach(m => bal[m.id]=0);
                 expenses.value.forEach(e => {
                     for(let id in e.payers) bal[id] += Math.round(Number(e.payers[id]) * 100);
                     for(let id in e.split_details) bal[id] -= Math.round(Number(e.split_details[id]) * 100);
@@ -496,11 +497,10 @@
 
             function copyLink() { 
                 navigator.clipboard.writeText(window.location.href); 
-                showToast.value = true;
-                setTimeout(() => showToast.value = false, 2000);
+                showToast.value = true; setTimeout(() => showToast.value = false, 2000);
             }
 
-            return { projects, currentProjectId, projectMeta, members, expenses, editingProjectId, editingProjectName, editingProjectDate, showModal, showSettlement, isEditing, form, totalExpense, isValid, settlement, isLocked, pin, pinContext, adminPass, showPassSettings, newProjectTitle, memberStats, formatDate, saveProjectName, startEditProject, deleteProject, createProject, enterProject, backToHome, pressPin, closePinPad, triggerPassSetup, addMember, updateMember, deleteMember, openAddExpense, openEditExpense, toggleMemberPay, toggleMemberSplit, toggleAllSplit, submitExpense, deleteExpense, copyLink, showToast, getSplitCount, getPayerDisplay };
+            return { projects, currentProjectId, projectMeta, members, expenses, editingProjectId, editingProjectName, editingProjectDate, showModal, showSettlement, isEditing, form, totalExpense, isValid, settlement, isLocked, pin, pinContext, adminPass, showPassSettings, newProjectTitle, memberStats, formatDate, saveProjectName, startEditProject, deleteProject, createProject, enterProject, backToHome, pressPin, closePinPad, triggerPassSetup, addMember, updateMember, deleteMember, openAddExpense, openEditExpense, toggleMemberPay, toggleMemberSplit, toggleAllSplit, submitExpense, deleteExpense, copyLink, showToast, getSplitCount, getPayerDisplay, manualMismatch };
         }
     }).mount('#app');
 </script>
