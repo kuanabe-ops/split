@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Split. Midnight Matte 6.6</title>
+    <title>Split. Midnight Matte 6.7</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
@@ -86,7 +86,7 @@
             <div class="mb-10 px-2 text-center">
                 <h3 class="text-xs text-gray-500 tracking-[0.3em] uppercase f-medium mb-6">個人支出</h3>
                 <div class="space-y-3 max-w-[240px] mx-auto bg-white/5 p-5 rounded-[24px] border border-white/10">
-                    <div v-for="m in members" class="flex justify-between text-[12px]"><span class="f-medium text-gray-500">{{m.name}}</span><span class="f-medium text-white">${{ (memberStats[m.id] || 0).toLocaleString() }}</span></div>
+                    <div v-for="m in members" :key="m.id" class="flex justify-between text-[12px]"><span class="f-medium text-gray-500">{{m.name}}</span><span class="f-medium text-white">${{ (memberStats[m.id] || 0).toLocaleString() }}</span></div>
                 </div>
                 <div class="mt-6 text-center text-xs text-gray-500 f-medium tracking-wider">總支出 ${{ totalExpense.toLocaleString() }}</div>
                 <button @click="showSettlement = true" class="mt-10 bg-white text-black px-10 py-3 rounded-full text-sm f-medium tracking-wider shadow-lg active:scale-95 transition-all">查看結算</button>
@@ -143,7 +143,7 @@
             const projects = ref([]); const currentProjectId = ref(null); const projectMeta = ref({}); const members = ref([]); const expenses = ref([]);
             const showModal = ref(false); const showSettlement = ref(false); const isEditing = ref(false); const editingExpenseId = ref(null);
             const editingProjectId = ref(null); const editingProjectName = ref(''); const editingProjectDate = ref('');
-            const adminPass = ref(null); const isLocked = ref(false); const showPassSettings = ref(false); const isSettingNew = ref(false); const pin = ref('');
+            const adminPass = ref(null); const isLocked = ref(false); const showPassSettings = ref(false); const pin = ref('');
             const newProjectTitle = ref(''); const showToast = ref(false);
             const form = ref({ title: '', amount: '', date: '', pMode: 'equal', pList: [], manualP: {}, sMode: 'equal', sList: [], manualS: {} });
 
@@ -166,10 +166,12 @@
                 return `${valid.length} 人付款`;
             }
 
-            const totalExpense = computed(() => expenses.value.reduce((a,b)=> a + (Number(b.amount) || 0), 0));
+            const totalExpense = computed(() => (expenses.value || []).reduce((a,b)=> a + (Number(b.amount) || 0), 0));
             const memberStats = computed(() => {
                 let res = {}; members.value.forEach(m => res[m.id] = 0);
-                expenses.value.forEach(e => { for (let id in e.split_details) res[id] = (res[id] || 0) + Number(e.split_details[id]); });
+                if (expenses.value && expenses.value.length > 0) {
+                    expenses.value.forEach(e => { for (let id in e.split_details) res[id] = (res[id] || 0) + Number(e.split_details[id]); });
+                }
                 return res;
             });
 
@@ -187,10 +189,23 @@
             async function addMember() {
                 const existNum = members.value.map(m => { const res = m.name.match(/^成員(\d+)$/); return res ? Number(res[1]) : null; }).filter(n => n !== null);
                 let i = 1; while (existNum.includes(i)) i++;
-                await client.from('members').insert({ project_id: currentProjectId.value, name: `成員${i}` }); loadData();
+                await client.from('members').insert({ project_id: currentProjectId.value, name: `成員${i}` }); await loadData();
             }
             async function updateMember(m) { await client.from('members').update({name: m.name}).eq('id', m.id); }
-            async function deleteMember(id) { if (confirm('刪除成員？')) { await client.from('members').delete().eq('id', id); loadData(); } }
+            
+            // 修正刪除成員邏輯
+            async function deleteMember(id) { 
+                if (confirm('確定刪除？')) { 
+                    try {
+                        await client.from('members').delete().eq('id', id); 
+                        // 強制清空目前快取的成員，避免計算錯誤
+                        members.value = members.value.filter(m => m.id !== id);
+                        await loadData(); 
+                    } catch (err) {
+                        console.error("刪除失敗", err);
+                    }
+                } 
+            }
 
             function openAddExpense() {
                 isEditing.value = false;
@@ -199,12 +214,10 @@
                 showModal.value = true;
             }
 
-            // 判斷是否為平均分配
             function checkIfEqual(obj, total) {
                 const values = Object.values(obj).filter(v => Number(v) > 0.01);
                 if (values.length === 0) return false;
                 if (values.length === 1) return Math.abs(values[0] - total) < 0.1;
-                // 判斷所有大於 0 的金額是否相等
                 return values.every(v => Math.abs(v - values[0]) < 0.1);
             }
 
@@ -212,20 +225,9 @@
                 isEditing.value = true; editingExpenseId.value = e.id;
                 const isPEqual = checkIfEqual(e.payers, e.amount);
                 const isSEqual = checkIfEqual(e.split_details, e.amount);
-                
-                // 這裡最重要：提取出當時大於 0 的成員 ID
                 const activePayers = Object.keys(e.payers).filter(id => Number(e.payers[id]) > 0.01);
                 const activeSplitters = Object.keys(e.split_details).filter(id => Number(e.split_details[id]) > 0.01);
-
-                form.value = { 
-                    title: e.title, amount: e.amount, date: e.date,
-                    pMode: isPEqual ? 'equal' : 'manual',
-                    pList: activePayers, // 即使原本是手動，這份清單也會被存起來備用
-                    manualP: {...e.payers},
-                    sMode: isSEqual ? 'equal' : 'manual',
-                    sList: activeSplitters, 
-                    manualS: {...e.split_details}
-                };
+                form.value = { title: e.title, amount: e.amount, date: e.date, pMode: isPEqual ? 'equal' : 'manual', pList: activePayers, manualP: {...e.payers}, sMode: isSEqual ? 'equal' : 'manual', sList: activeSplitters, manualS: {...e.split_details} };
                 members.value.forEach(m => {
                     if (form.value.manualP[m.id] === undefined) form.value.manualP[m.id] = 0;
                     if (form.value.manualS[m.id] === undefined) form.value.manualS[m.id] = 0;
@@ -273,13 +275,12 @@
 
             const settlement = computed(() => {
                 let bal = {}; members.value.forEach(m => bal[m.id]=0);
-                expenses.value.forEach(e => {
-                    for(let id in e.payers) bal[id] += Math.round(Number(e.payers[id]) * 100);
-                    for(let id in e.split_details) bal[id] -= Math.round(Number(e.split_details[id]) * 100);
+                (expenses.value || []).forEach(e => {
+                    for(let id in e.payers) if(bal[id] !== undefined) bal[id] += Math.round(Number(e.payers[id]) * 100);
+                    for(let id in e.split_details) if(bal[id] !== undefined) bal[id] -= Math.round(Number(e.split_details[id]) * 100);
                 });
-                const details = members.value.map(m => ({ id: m.id, name: m.name, net: bal[m.id]/100 }));
-                let ts = []; 
-                let debtors = details.filter(x=>x.net < -0.01).sort((a,b)=>a.net-b.net).map(x=>({...x}));
+                const details = members.value.map(m => ({ id: m.id, name: m.name, net: (bal[m.id] || 0)/100 }));
+                let ts = []; let debtors = details.filter(x=>x.net < -0.01).sort((a,b)=>a.net-b.net).map(x=>({...x}));
                 let creditors = details.filter(x=>x.net > 0.01).sort((a,b)=>b.net-a.net).map(x=>({...x}));
                 let i=0, j=0;
                 while(i < debtors.length && j < creditors.length) {
@@ -305,16 +306,8 @@
             const backToHome = () => { if (adminPass.value) { isLocked.value = true; pin.value = ''; } else { currentProjectId.value = null; fetchProjects(); } };
             const closePinPad = () => { isLocked.value = false; showPassSettings.value = false; pin.value = ''; };
             const triggerPassSetup = () => { pin.value = ''; showPassSettings.value = true; };
-            function toggleMemberPay(id) { 
-                const sid = String(id);
-                const i = form.value.pList.indexOf(sid); 
-                if (i > -1) form.value.pList.splice(i, 1); else form.value.pList.push(sid); 
-            }
-            function toggleMemberSplit(id) { 
-                const sid = String(id);
-                const i = form.value.sList.indexOf(sid); 
-                if (i > -1) form.value.sList.splice(i, 1); else form.value.sList.push(sid); 
-            }
+            function toggleMemberPay(id) { const sid = String(id); const i = form.value.pList.indexOf(sid); if (i > -1) form.value.pList.splice(i, 1); else form.value.pList.push(sid); }
+            function toggleMemberSplit(id) { const sid = String(id); const i = form.value.sList.indexOf(sid); if (i > -1) form.value.sList.splice(i, 1); else form.value.sList.push(sid); }
             function toggleAllSplit() { if (form.value.sList.length === members.value.length) form.value.sList = []; else form.value.sList = members.value.map(m => String(m.id)); }
             function copyLink() { navigator.clipboard.writeText(window.location.href); showToast.value = true; setTimeout(() => showToast.value = false, 2000); }
 
