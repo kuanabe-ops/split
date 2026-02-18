@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Split. Midnight Matte 6.9.3</title>
+    <title>Split. Midnight Matte 6.9.4</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
@@ -33,6 +33,8 @@
         .fade-enter-from, .fade-leave-to { opacity: 0; }
         .delete-btn-raw { color: #6B7280; transition: color 0.2s; }
         .delete-btn-raw:hover { color: #F87171; }
+        .rotate-anim { animation: rotate 0.5s ease-in-out; }
+        @keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
     </style>
 </head>
 <body class="f-light">
@@ -78,8 +80,13 @@
     <div v-else class="flex flex-col h-screen overflow-hidden w-full max-w-[390px] mx-auto">
         <header class="py-5 flex justify-between items-center bg-transparent sticky top-0 z-50">
             <button @click="backToHome" class="p-2 text-white/80"><i data-lucide="home" class="w-6 h-6"></i></button>
-            <h2 class="text-lg f-medium tracking-tight truncate max-w-[220px] text-white">{{ projectMeta.name }}</h2>
-            <button @click="copyLink" class="p-2 text-gray-500 hover:text-white"><i data-lucide="link" class="w-5 h-5"></i></button>
+            <h2 class="text-lg f-medium tracking-tight truncate max-w-[180px] text-white">{{ projectMeta.name }}</h2>
+            <div class="flex items-center gap-1">
+                <button @click="manualRefresh" class="p-2 text-gray-500 hover:text-white transition-colors" :class="{'rotate-anim': isRefreshing}">
+                    <i data-lucide="refresh-cw" class="w-5 h-5"></i>
+                </button>
+                <button @click="copyLink" class="p-2 text-gray-500 hover:text-white"><i data-lucide="link" class="w-5 h-5"></i></button>
+            </div>
         </header>
 
         <main class="flex-1 overflow-y-auto pt-4 pb-36 pr-1">
@@ -179,7 +186,7 @@
             const showModal = ref(false); const showSettlement = ref(false); const isEditing = ref(false); const editingExpenseId = ref(null);
             const editingProjectId = ref(null); const editingProjectName = ref(''); const editingProjectDate = ref('');
             const adminPass = ref(null); const isLocked = ref(false); const showPassSettings = ref(false); const pin = ref('');
-            const newProjectTitle = ref(''); const showToast = ref(false);
+            const newProjectTitle = ref(''); const showToast = ref(false); const isRefreshing = ref(false);
             const form = ref({ title: '', amount: '', date: '', pMode: 'equal', pList: [], manualP: {}, sMode: 'equal', sList: [], manualS: {} });
 
             const refreshIcons = () => nextTick(() => { if(window.lucide) lucide.createIcons(); });
@@ -213,6 +220,8 @@
                 const { data: m } = await client.from('members').select('*').eq('project_id', currentProjectId.value).order('id'); members.value = m || [];
                 const { data: e } = await client.from('expenses').select('*').eq('project_id', currentProjectId.value).order('created_at'); expenses.value = e || [];
             }
+            async function manualRefresh() { isRefreshing.value = true; await loadData(); setTimeout(() => isRefreshing.value = false, 500); }
+
             async function createProject() { if (!newProjectTitle.value.trim()) return; const { data } = await client.from('projects').insert({ name: newProjectTitle.value }).select().single(); enterProject(data.id); }
             function startEditProject(p) { editingProjectId.value = p.id; editingProjectName.value = p.name; editingProjectDate.value = formatDate(p.created_at); }
             async function saveProjectName(id) { await client.from('projects').update({ name: editingProjectName.value, created_at: editingProjectDate.value }).eq('id', id); editingProjectId.value = null; fetchProjects(); }
@@ -245,26 +254,19 @@
                 showModal.value = true;
             }
 
-            // 🛠️ 模式還原修復核心
             function openEditExpense(e) {
                 isEditing.value = true; editingExpenseId.value = e.id;
-                
-                // 1. 取得有金額的人員 ID (轉為數字型態)
                 const activePayers = Object.keys(e.payers).filter(id => Number(e.payers[id]) > 0.01).map(Number);
                 const activeSplitters = Object.keys(e.split_details).filter(id => Number(e.split_details[id]) > 0.01).map(Number);
-                
-                // 2. 模式判定邏輯：如果所有 active 成員的金額差異極小，判定為平均模式
                 const pVals = activePayers.map(id => Number(e.payers[id]));
                 const sVals = activeSplitters.map(id => Number(e.split_details[id]));
                 const isPManual = pVals.length > 1 ? !pVals.every(v => Math.abs(v - pVals[0]) < 0.2) : false;
                 const isSManual = sVals.length > 1 ? !sVals.every(v => Math.abs(v - sVals[0]) < 0.2) : false;
-
                 form.value = {
                     title: e.title, amount: e.amount, date: e.date,
                     pMode: isPManual ? 'manual' : 'equal', pList: activePayers, manualP: {...e.payers},
                     sMode: isSManual ? 'manual' : 'equal', sList: activeSplitters, manualS: {...e.split_details}
                 };
-
                 members.value.forEach(m => {
                     if (form.value.manualP[m.id] === undefined) form.value.manualP[m.id] = 0;
                     if (form.value.manualS[m.id] === undefined) form.value.manualS[m.id] = 0;
@@ -313,7 +315,7 @@
             function toggleAllSplit() { if (form.value.sList.length === members.value.length) form.value.sList = []; else form.value.sList = members.value.map(m => m.id); }
             function copyLink() { navigator.clipboard.writeText(window.location.href); showToast.value = true; setTimeout(() => showToast.value = false, 2000); }
 
-            return { projects, currentProjectId, projectMeta, members, expenses, showModal, showSettlement, isEditing, form, isValid, totalExpense, memberStats, settlement, isLocked, pin, pinContext, showPassSettings, newProjectTitle, showToast, editingProjectId, editingProjectName, editingProjectDate, formatDate, getPayerDisplay, getSplitCount, fetchProjects, createProject, enterProject, loadData, startEditProject, saveProjectName, deleteProject, addMember, updateMember, deleteMember, openAddExpense, openEditExpense, toggleMemberPay, toggleMemberSplit, toggleAllSplit, submitExpense, deleteExpense, pressPin, handlePinComplete, backToHome, closePinPad, triggerPassSetup, copyLink, payManualDiff, splitManualDiff };
+            return { projects, currentProjectId, projectMeta, members, expenses, showModal, showSettlement, isEditing, form, isValid, totalExpense, memberStats, settlement, isLocked, pin, pinContext, showPassSettings, newProjectTitle, showToast, isRefreshing, editingProjectId, editingProjectName, editingProjectDate, formatDate, getPayerDisplay, getSplitCount, fetchProjects, createProject, enterProject, loadData, manualRefresh, startEditProject, saveProjectName, deleteProject, addMember, updateMember, deleteMember, openAddExpense, openEditExpense, toggleMemberPay, toggleMemberSplit, toggleAllSplit, submitExpense, deleteExpense, pressPin, handlePinComplete, backToHome, closePinPad, triggerPassSetup, copyLink, payManualDiff, splitManualDiff };
         }
     }).mount('#app');
 </script>
