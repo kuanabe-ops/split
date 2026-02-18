@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Split.</title>
+    <title>Split. Midnight Matte 6.9.5</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
@@ -233,17 +233,32 @@
                 await client.from('members').insert({ project_id: currentProjectId.value, name: `成員${i}` }); await loadData();
             }
             async function updateMember(m) { await client.from('members').update({name: m.name}).eq('id', m.id); }
+            
             async function deleteMember(id) { 
                 if (confirm('確定刪除成員？該成員在花費中的紀錄也會被清理。')) { 
                     const sid = String(id); const updates = [];
+                    // 1. 準備後端更新請求
                     expenses.value.forEach(exp => {
                         let p = { ...exp.payers }, s = { ...exp.split_details }, dirty = false;
                         if (p[sid] !== undefined || p[id] !== undefined) { delete p[sid]; delete p[id]; dirty = true; }
                         if (s[sid] !== undefined || s[id] !== undefined) { delete s[sid]; delete s[id]; dirty = true; }
                         if (dirty) updates.push(client.from('expenses').update({ payers: p, split_details: s }).eq('id', exp.id));
                     });
+                    
                     if (updates.length > 0) await Promise.all(updates);
-                    await client.from('members').delete().eq('id', id); await loadData(); 
+                    await client.from('members').delete().eq('id', id);
+                    
+                    // 2. 前端樂觀更新：立刻移除成員與清理花費，讓 UI (個人支出、結算) 瞬間反應
+                    members.value = members.value.filter(m => m.id !== id);
+                    expenses.value = expenses.value.map(exp => {
+                        let p = { ...exp.payers }, s = { ...exp.split_details };
+                        if (p[sid] !== undefined) delete p[sid]; if (p[id] !== undefined) delete p[id];
+                        if (s[sid] !== undefined) delete s[sid]; if (s[id] !== undefined) delete s[id];
+                        return { ...exp, payers: p, split_details: s };
+                    });
+
+                    // 3. 背景同步確保一致性
+                    await loadData(); 
                 } 
             }
 
