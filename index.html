@@ -302,7 +302,7 @@
 
                 const total = entries.reduce((a,b)=>a+Number(b[1]),0);
 
-                const palette = {
+                const colorMap = {
                     '飲食': '#B36A6A',
                     '住宿': '#B58A6A',
                     '交通': '#B7A96A',
@@ -320,7 +320,7 @@
                     .map((item)=>({
                         ...item,
                         percent: ((item.value/total)*100).toFixed(1),
-                        color: palette[item.label] || '#8E9399'
+                        color: colorMap[item.label] || '#8E9399'
                     }));
             });
 
