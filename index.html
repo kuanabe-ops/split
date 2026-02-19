@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Split. - Pro Full Feature</title>
+    <title>Split. - Apple Fitness Edition</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
@@ -22,13 +22,16 @@
         }
         body { display: flex; justify-content: center; }
         #app { width: 100%; max-width: 390px; margin: 0 auto; min-height: 100vh; position: relative; }
+        main::-webkit-scrollbar { display: none; }
         .f-light { font-weight: 300; }
         .f-medium { font-weight: 500; }
         * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
         .card { @apply rounded-[24px]; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); backdrop-filter: blur(12px); }
-        .pin-btn { width: 72px; height: 72px; border-radius: 22px; font-size: 22px; font-weight: 300; background: rgba(255,255,255,0.06); color: #F5F7FA; backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: center; }
+        .pin-btn { width: 72px; height: 72px; border-radius: 22px; font-size: 22px; font-weight: 300; background: rgba(255,255,255,0.06); color: #F5F7FA; backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.08); transition: transform .15s ease; display: flex; align-items: center; justify-content: center; }
         .pin-btn:active { transform: scale(0.95); background: rgba(255,255,255,0.12); }
         [v-cloak] { display: none; }
+        .fade-enter-active, .fade-leave-active { transition: opacity 0.5s; }
+        .fade-enter-from, .fade-leave-to { opacity: 0; }
         .rotate-anim { animation: rotate 0.5s ease-in-out; }
         @keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
     </style>
@@ -37,7 +40,9 @@
 
 <div id="app" v-cloak class="flex flex-col relative px-5">
 
-    <div v-if="showToast" class="fixed top-16 left-1/2 -translate-x-1/2 bg-white/10 backdrop-blur-xl text-white text-xs f-medium px-8 py-3 rounded-full shadow-2xl border border-white/10 z-[999]">連結已複製</div>
+    <transition name="fade">
+        <div v-if="showToast" class="fixed top-16 left-1/2 -translate-x-1/2 bg-white/10 backdrop-blur-xl text-white text-xs f-medium px-8 py-3 rounded-full shadow-2xl border border-white/10 z-[999]">連結已複製</div>
+    </transition>
 
     <div v-if="isLocked || showPassSettings" class="fixed inset-0 bg-[#0F1115] z-[500] flex flex-col items-center justify-center p-6">
         <h2 class="text-xs mb-12 f-medium tracking-[0.4em] text-gray-500 uppercase">{{ pinContext.title }}</h2>
@@ -45,7 +50,7 @@
         <div class="grid grid-cols-3 gap-6"><button v-for="n in 9" @click="pressPin(n)" class="pin-btn">{{n}}</button><button @click="pin=''" class="text-sm text-gray-500 f-medium">清除</button><button @click="pressPin(0)" class="pin-btn">0</button><button @click="closePinPad" class="text-sm text-white/60 f-medium">取消</button></div>
     </div>
 
-    <div v-if="!currentProjectId" class="flex flex-col pt-12">
+    <div v-if="!currentProjectId" class="flex flex-col pt-12 animate-in fade-in">
         <header class="flex justify-between items-center mb-10 px-1">
             <h1 class="text-2xl f-light tracking-[-0.02em] text-white/90">Split.</h1>
             <button @click="triggerPassSetup" class="p-3 bg-white/5 rounded-2xl text-gray-400 border border-white/5"><i data-lucide="shield"></i></button>
@@ -65,55 +70,72 @@
                 </div>
                 <div v-if="editingProjectId !== p.id" class="flex gap-1">
                     <button @click.stop="startEditProject(p)" class="p-2 text-gray-500"><i data-lucide="edit-2" class="w-4 h-4"></i></button>
-                    <button @click.stop="deleteProject(p.id)" class="p-2 text-gray-500"><i data-lucide="trash" class="w-4 h-4"></i></button>
+                    <button @click.stop="deleteProject(p.id)" class="p-2 text-gray-500 hover:text-red-400"><i data-lucide="trash" class="w-4 h-4"></i></button>
                 </div>
             </div>
         </div>
     </div>
 
-    <div v-else class="flex flex-col h-screen overflow-hidden">
-        <header class="py-5 relative flex items-center justify-between sticky top-0 z-50">
-            <button @click="backToHome" class="p-2 text-white/80"><i data-lucide="home" class="w-6 h-6"></i></button>
-            <h2 class="absolute left-1/2 -translate-x-1/2 text-lg f-medium text-white truncate max-w-[60%]">{{ projectMeta.name }}</h2>
-            <div class="flex items-center gap-1">
-                <button @click="manualRefresh" class="p-2 text-gray-500" :class="{'rotate-anim': isRefreshing}"><i data-lucide="refresh-cw" class="w-5 h-5"></i></button>
-                <button @click="copyLink" class="p-2 text-gray-500"><i data-lucide="link" class="w-5 h-5"></i></button>
+    <div v-else class="flex flex-col h-screen overflow-hidden w-full max-w-[390px] mx-auto">
+        <header class="py-5 relative flex items-center justify-between bg-transparent sticky top-0 z-50">
+            <button @click="backToHome" class="p-2 text-white/80 z-10">
+                <i data-lucide="home" class="w-6 h-6"></i>
+            </button>
+            <h2 class="absolute left-1/2 -translate-x-1/2 text-lg f-medium tracking-tight text-white text-center max-w-[70%] truncate">
+                {{ projectMeta.name }}
+            </h2>
+            <div class="flex items-center gap-1 z-10">
+                <button @click="manualRefresh" class="p-2 text-gray-500 hover:text-white transition-colors" :class="{'rotate-anim': isRefreshing}">
+                    <i data-lucide="refresh-cw" class="w-5 h-5"></i>
+                </button>
+                <button @click="copyLink" class="p-2 text-gray-500 hover:text-white">
+                    <i data-lucide="link" class="w-5 h-5"></i>
+                </button>
             </div>
         </header>
 
-        <main class="flex-1 overflow-y-auto pt-2 pb-36">
+        <div class="text-center text-[11px] text-blue-300 tracking-widest mb-4">
+            {{ formatDate(projectMeta.created_at) }}
+        </div>
+
+        <main class="flex-1 overflow-y-auto pt-2 pb-36 pr-1">
             <div class="mb-14 flex flex-col items-center">
-                <h3 class="text-sm text-blue-300 tracking-[0.3em] uppercase f-medium mb-6 text-center w-full">個人支出</h3>
+                <h3 class="text-sm text-blue-300 tracking-[0.3em] uppercase f-medium mb-6">個人支出</h3>
                 <div class="space-y-3 w-full max-w-[260px] bg-white/5 p-6 rounded-[28px] border border-white/10 backdrop-blur-xl">
                     <div v-for="m in members" :key="m.id" class="flex justify-between text-sm">
                         <span class="f-medium text-blue-300">{{m.name}}</span>
                         <span class="f-medium text-white">${{ (memberStats[m.id] || 0).toLocaleString() }}</span>
                     </div>
                 </div>
-                <div class="mt-8 text-sm text-blue-300 f-medium tracking-wider text-center w-full">總支出 ${{ totalExpense.toLocaleString() }}</div>
-                <button @click="handleSettlementClick" class="mt-10 bg-white text-black px-10 py-3 rounded-full text-sm f-medium shadow-lg active:scale-95 transition-all">查看結算</button>
+                <div class="mt-8 text-sm text-blue-300 f-medium tracking-wider">
+                    總支出 ${{ totalExpense.toLocaleString() }}
+                </div>
+                <button @click="handleSettlementClick" class="mt-10 bg-white text-black px-10 py-3 rounded-full text-sm f-medium tracking-wider shadow-lg active:scale-95 transition-all">查看結算</button>
             </div>
             
             <section class="mb-10">
-                <div class="flex justify-between items-center mb-4 px-2"><h3 class="text-xs text-blue-300 tracking-[0.3em] uppercase f-medium">成員</h3><button @click="addMember" class="text-xl text-white f-medium">＋</button></div>
+                <div class="flex justify-between items-center mb-4 px-2"><h3 class="text-xs text-blue-300 tracking-[0.3em] uppercase f-medium">成員</h3><button @click="addMember" class="text-xl text-white f-medium px-2">＋</button></div>
                 <div class="grid grid-cols-2 gap-3">
                     <div v-for="m in members" :key="m.id" class="flex items-center gap-3 p-4 card">
                         <input v-model="m.name" @blur="updateMember(m)" class="flex-1 min-w-0 bg-transparent outline-none text-sm f-medium text-white">
-                        <button @mousedown.prevent="deleteMember(m.id)" class="p-1"><i data-lucide="x" class="w-4 h-4 text-gray-500"></i></button>
+                        <button @mousedown.prevent="deleteMember(m.id)" class="delete-btn-raw p-1">
+                            <i data-lucide="x" class="w-4 h-4"></i>
+                        </button>
                     </div>
                 </div>
             </section>
 
             <section>
-                <div class="flex justify-between items-center mb-4 px-2"><h3 class="text-xs text-blue-300 tracking-[0.3em] uppercase f-medium">花費</h3><button @click="openAddExpense" class="text-xl text-white f-medium">＋</button></div>
+                <div class="flex justify-between items-center mb-4 px-2"><h3 class="text-xs text-blue-300 tracking-[0.3em] uppercase f-medium">花費</h3><button @click="openAddExpense" class="text-xl text-white f-medium px-2">＋</button></div>
                 <div v-for="exp in expenses" :key="exp.id" @click="openEditExpense(exp)" 
-                     :class="['card p-5 mb-3 flex justify-between items-center', invalidExpenseIds.includes(exp.id) ? 'border-red-500/40 bg-red-500/5' : '']">
+                     :class="['card p-5 mb-3 flex justify-between items-center active:scale-[0.98] transition-all', invalidExpenseIds.includes(exp.id) ? 'border border-red-500/40 bg-red-500/5' : '']">
                     <div class="flex-1 truncate pr-3">
                         <p class="text-base f-medium mb-1 truncate text-white">{{ exp.title }}</p>
-                        <p class="text-xs text-blue-300 f-medium">{{ exp.category || '未分類' }} · {{ getPayerDisplay(exp) }}</p>
+                        <p class="text-xs text-blue-300 f-medium">{{ exp.category || '未分類' }} · {{ getPayerDisplay(exp) }} · {{ getSplitCount(exp) }} 人分攤</p>
                     </div>
                     <div class="text-right">
-                        <span class="f-medium text-xl text-white">${{ Number(exp.amount).toLocaleString() }}</span>
+                        <span class="f-medium text-xl tracking-tight text-white">${{ Number(exp.amount).toLocaleString() }}</span>
+                        <p v-if="invalidExpenseIds.includes(exp.id)" class="text-[10px] text-red-400 mt-1">手動金額未平衡</p>
                     </div>
                 </div>
             </section>
@@ -123,7 +145,6 @@
     <div v-if="showModal" class="fixed inset-0 bg-black/60 backdrop-blur-md z-[200] flex items-end justify-center">
         <div class="bg-[#161A22] w-full max-w-[390px] mx-auto h-[85vh] rounded-t-[32px] p-8 overflow-y-auto border-t border-white/10">
             <div class="flex justify-between items-center mb-8"><span class="text-xs tracking-[0.3em] text-blue-300 uppercase f-medium">{{ isEditing ? '編輯花費' : '新增花費' }}</span><button @click="showModal = false" class="p-2 bg-white/5 rounded-full text-blue-300"><i data-lucide="x" class="w-5 h-5"></i></button></div>
-            
             <div class="space-y-4 pb-10">
                 <input v-model="form.date" type="date" class="w-full text-base text-blue-300 mb-2 outline-none bg-transparent f-medium">
                 <input v-model="form.title" type="text" placeholder="消費項目" class="w-full bg-transparent border-b border-white/10 py-3 text-lg text-white outline-none">
@@ -144,54 +165,50 @@
                     <div>
                         <div class="flex justify-between items-center mb-4"><span class="text-xs text-blue-300 uppercase f-medium">誰付款？</span><button @click="form.pMode = form.pMode==='equal'?'manual':'equal'" class="text-xs bg-white/5 text-blue-300 px-4 py-1.5 rounded-full">{{ form.pMode==='equal' ? '平均' : '手動' }}</button></div>
                         <div v-if="form.pMode==='equal'" class="flex flex-wrap gap-2">
-                            <button v-for="m in members" @click="toggleMemberPay(m.id)" :class="form.pList.includes(m.id)?'bg-blue-500/20 text-blue-200 border-blue-400/20':'bg-white/5 text-blue-300'" class="px-5 py-2.5 rounded-2xl text-sm f-medium">{{m.name}}</button>
+                            <button v-for="m in members" @click="toggleMemberPay(m.id)" :class="form.pList.includes(m.id)?'bg-blue-500/20 text-blue-200 border-blue-400/20':'bg-white/5 text-blue-300'" class="px-5 py-2.5 rounded-2xl text-sm f-medium border border-transparent">{{m.name}}</button>
                         </div>
                         <div v-else class="space-y-3">
                             <div v-for="m in members" class="flex justify-between items-center p-3 bg-white/5 rounded-2xl">
                                 <span class="text-sm text-white">{{m.name}}</span>
-                                <input v-model.number="form.manualP[m.id]" type="number" class="w-24 bg-transparent text-right text-white border-b border-white/10 outline-none">
+                                <input v-model.number="form.manualP[m.id]" type="number" class="w-24 bg-transparent text-right outline-none text-base text-white border-b border-white/10">
                             </div>
-                            <p class="text-xs text-center" :class="Math.abs(payManualDiff) > 0.1 ? 'text-red-400' : 'text-green-400'">差額 {{ payManualDiff.toFixed(1) }}</p>
+                            <p class="text-sm text-center mt-2" :class="Math.abs(payManualDiff) > 0.1 ? 'text-red-400' : 'text-green-400'">差額 {{ payManualDiff > 0 ? '+' : '' }}{{ payManualDiff.toFixed(1) }}</p>
                         </div>
                     </div>
                     <div>
                         <div class="flex justify-between items-center mb-4"><span class="text-xs text-blue-300 uppercase f-medium">誰分攤？</span><div class="flex gap-2"><button v-if="form.sMode==='equal'" @click="toggleAllSplit" class="text-xs text-blue-300 f-medium mr-2">全選</button><button @click="form.sMode = form.sMode==='equal'?'manual':'equal'" class="text-xs bg-white/5 text-blue-300 px-4 py-1.5 rounded-full">{{ form.sMode==='equal' ? '平均' : '手動' }}</button></div></div>
                         <div v-if="form.sMode==='equal'" class="flex flex-wrap gap-2">
-                            <button v-for="m in members" @click="toggleMemberSplit(m.id)" :class="form.sList.includes(m.id)?'bg-blue-500/20 text-blue-200 border-blue-400/20':'bg-white/5 text-blue-300'" class="px-5 py-2.5 rounded-2xl text-sm f-medium">{{m.name}}</button>
+                            <button v-for="m in members" @click="toggleMemberSplit(m.id)" :class="form.sList.includes(m.id)?'bg-blue-500/20 text-blue-200 border-blue-400/20':'bg-white/5 text-blue-300'" class="px-5 py-2.5 rounded-2xl text-sm f-medium border border-transparent">{{m.name}}</button>
                         </div>
                         <div v-else class="space-y-3">
                             <div v-for="m in members" class="flex justify-between items-center p-3 bg-white/5 rounded-2xl">
                                 <span class="text-sm text-white">{{m.name}}</span>
-                                <input v-model.number="form.manualS[m.id]" type="number" class="w-24 bg-transparent text-right text-white border-b border-white/10 outline-none">
+                                <input v-model.number="form.manualS[m.id]" type="number" class="w-24 bg-transparent text-right outline-none text-base text-white border-b border-white/10">
                             </div>
-                            <p class="text-xs text-center" :class="Math.abs(splitManualDiff) > 0.1 ? 'text-red-400' : 'text-green-400'">差額 {{ splitManualDiff.toFixed(1) }}</p>
+                            <p class="text-sm text-center mt-2" :class="Math.abs(splitManualDiff) > 0.1 ? 'text-red-400' : 'text-green-400'">差額 {{ splitManualDiff > 0 ? '+' : '' }}{{ splitManualDiff.toFixed(1) }}</p>
                         </div>
                     </div>
                 </div>
-                <div class="flex flex-col gap-4 pt-6"><button @click="submitExpense" :disabled="!isValid" class="w-full bg-white text-black py-4 rounded-2xl text-sm f-medium shadow-lg disabled:opacity-30">儲存花費</button><button v-if="isEditing" @click="deleteExpense" class="text-red-400 text-xs py-2">刪除花費</button></div>
+                <div class="flex flex-col gap-4 pt-6"><button @click="submitExpense" :disabled="!isValid" class="w-full bg-white text-black py-4 rounded-2xl text-sm f-medium disabled:opacity-20 shadow-lg">儲存花費</button><button v-if="isEditing" @click="deleteExpense" class="text-red-400 text-xs f-medium py-2">刪除花費</button></div>
             </div>
         </div>
     </div>
 
-    <div v-if="showSettlement" class="fixed inset-0 bg-[#0F1115] z-[300] flex flex-col p-8 overflow-y-auto">
-        <div class="flex justify-between items-center mb-12"><h2 class="text-2xl f-light text-white">建議轉帳</h2><button @click="showSettlement=false" class="p-3 bg-white/5 rounded-2xl text-gray-500"><i data-lucide="x" class="w-5 h-5"></i></button></div>
-        <div class="space-y-4 mb-20">
-            <div v-for="t in settlement.transfers" class="flex justify-between items-center p-6 rounded-[24px] bg-white/5 border border-white/10">
-                <div class="flex flex-col gap-1"><span class="text-xs text-blue-300 uppercase">由 {{t.from}}</span><span class="text-sm text-white">給 {{t.to}}</span></div>
+    <div v-if="showSettlement" class="fixed inset-0 bg-[#0F1115] z-[300] flex flex-col p-8 overflow-y-auto animate-in fade-in">
+        <div class="flex justify-between items-center mb-16"><h2 class="text-3xl f-light text-white">建議轉帳路徑</h2><button @click="showSettlement=false" class="p-3 bg-white/5 rounded-2xl text-gray-500"><i data-lucide="x" class="w-5 h-5"></i></button></div>
+        <div class="space-y-6">
+            <div v-for="t in settlement.transfers" class="flex justify-between items-center p-6 rounded-[24px] bg-white/5 border border-white/10 backdrop-blur-md">
+                <div class="flex flex-col gap-1"><span class="text-[14px] text-blue-300 uppercase tracking-widest">由 {{t.from}}</span><span class="text-sm f-medium text-white">給 {{t.to}}</span></div>
                 <span class="f-medium text-2xl text-white">${{Math.round(t.amount)}}</span>
             </div>
+            <p v-if="settlement.transfers.length === 0" class="text-center text-blue-300 py-10">目前無須轉帳</p>
         </div>
 
-        <div>
-            <h3 class="text-lg f-light text-white mb-6">分類統計</h3>
-            <div class="flex justify-center mb-10"><div class="w-[260px]"><canvas id="categoryChart"></canvas></div></div>
-            <div class="space-y-3 pb-12">
-                <div v-for="(value, key, index) in categoryStats" class="flex justify-between items-center px-2 text-sm">
-                    <div class="flex items-center gap-3">
-                        <div class="w-3 h-3 rounded-full" :style="{ background: getPaletteColor(index) }"></div>
-                        <span class="text-blue-300">{{ key }}</span>
-                    </div>
-                    <span class="text-white f-medium">${{ Math.round(value).toLocaleString() }}</span>
+        <div class="mt-20">
+            <h2 class="text-3xl f-light text-white mb-6">分類統計</h2>
+            <div class="pb-16 flex justify-center">
+                <div class="w-[260px]">
+                    <canvas id="categoryChart"></canvas>
                 </div>
             </div>
         </div>
@@ -204,15 +221,6 @@
     const client = supabase.createClient(SB_URL, SB_KEY);
     const { createApp, ref, computed, onMounted, nextTick, watch } = Vue;
 
-    // ✅ 指定灰藍色系 Palette
-    const palette = [
-        ['#94A3B8', '#334155'], // Slate 400, 700
-        ['#64748B', '#1E293B'], // Slate 500, 800
-        ['#475569', '#0F172A'], // Slate 600, 900
-        ['#CBD5E1', '#475569'], // Slate 300, 600
-        ['#1E293B', '#020617']  // Slate 800, 950
-    ];
-
     createApp({
         setup() {
             const projects = ref([]); const currentProjectId = ref(null); const projectMeta = ref({}); const members = ref([]); const expenses = ref([]);
@@ -220,12 +228,9 @@
             const editingProjectId = ref(null); const editingProjectName = ref(''); const editingProjectDate = ref('');
             const adminPass = ref(null); const isLocked = ref(false); const showPassSettings = ref(false); const pin = ref('');
             const newProjectTitle = ref(''); const showToast = ref(false); const isRefreshing = ref(false);
-            const invalidExpenseIds = ref([]);
             
-            const form = ref({ title:'', amount:'', date:'', category:'', pMode:'equal', pList:[], manualP:{}, sMode:'equal', sList:[], manualS:{} });
-
-            const payManualDiff = computed(() => Number(form.value.amount) - Object.values(form.value.manualP).reduce((a,b)=>a+(Number(b)||0), 0));
-            const splitManualDiff = computed(() => Number(form.value.amount) - Object.values(form.value.manualS).reduce((a,b)=>a+(Number(b)||0), 0));
+            const form = ref({ title: '', amount: '', date: '', category: '', pMode: 'equal', pList: [], manualP: {}, sMode: 'equal', sList: [], manualS: {} });
+            const invalidExpenseIds = ref([]);
 
             const refreshIcons = () => nextTick(() => { if(window.lucide) lucide.createIcons(); });
             onMounted(async () => {
@@ -237,87 +242,199 @@
             watch([projects, currentProjectId, showModal, showSettlement, isLocked], refreshIcons);
 
             const formatDate = (d) => d ? new Date(d).toISOString().split('T')[0] : '';
-            function getPayerDisplay(exp) { const count = Object.keys(exp.payers || {}).length; return count <= 1 ? '個人付款' : `${count} 人合付`; }
+            function getSplitCount(exp) { return Object.values(exp.split_details || {}).filter(v => Number(v) > 0.1).length; }
+            function getPayerDisplay(exp) {
+                const valid = Object.entries(exp.payers || {}).filter(([id, v]) => members.value.some(m => m.id == id) && Number(v) > 0.1);
+                if (valid.length === 1) { const m = members.value.find(x => x.id == valid[0][0]); return m ? `${m.name} 付款` : '1人付款'; }
+                return `${valid.length} 人付款`;
+            }
+
             const totalExpense = computed(() => expenses.value.reduce((a,b)=> a + (Number(b.amount) || 0), 0));
             const memberStats = computed(() => {
                 let res = {}; members.value.forEach(m => res[m.id] = 0);
                 expenses.value.forEach(e => { for (let id in e.split_details) if (res[id] !== undefined) res[id] += Number(e.split_details[id]); });
                 return res;
             });
+
             const categoryStats = computed(() => {
                 let map = {};
-                expenses.value.forEach(e => { const cat = e.category || '未分類'; map[cat] = (map[cat] || 0) + Number(e.amount); });
+                expenses.value.forEach(e => {
+                    const cat = e.category || '未分類';
+                    map[cat] = (map[cat] || 0) + Number(e.amount);
+                });
                 return map;
             });
-            const getPaletteColor = (index) => palette[index % palette.length][0];
 
+            // --- Apple Fitness 風格 Chart 升級版 ---
             let chartInstance = null;
             watch(showSettlement, (val) => {
                 if (!val) return;
+
                 nextTick(() => {
                     const canvas = document.getElementById('categoryChart');
                     if (!canvas) return;
+
                     const ctx = canvas.getContext('2d');
                     if (chartInstance) chartInstance.destroy();
+
                     const labels = Object.keys(categoryStats.value);
                     const values = Object.values(categoryStats.value);
+                    const total = values.reduce((a,b)=>a+b,0);
+
+                    const palette = [
+                        ['#5DA9FF', '#1C4ED8'],
+                        ['#4FD1C5', '#0F766E'],
+                        ['#F6AD55', '#C05621'],
+                        ['#F56565', '#9B2C2C'],
+                        ['#B794F4', '#6B46C1'],
+                        ['#94A3B8', '#334155']
+                    ];
+
                     const gradients = labels.map((_, i) => {
                         const g = ctx.createLinearGradient(0, 0, 0, 260);
                         const pair = palette[i % palette.length];
-                        g.addColorStop(0, pair[0]); g.addColorStop(1, pair[1]);
+                        g.addColorStop(0, pair[0]);
+                        g.addColorStop(1, pair[1]);
                         return g;
                     });
+
                     chartInstance = new Chart(ctx, {
                         type: 'doughnut',
-                        data: { labels, datasets: [{ data: values, backgroundColor: gradients, borderWidth: 0 }] },
-                        options: { cutout: '52%', plugins: { legend: { display: false } } }
+                        data: {
+                            labels,
+                            datasets: [{
+                                data: values,
+                                backgroundColor: gradients,
+                                borderWidth: 0,
+                                hoverOffset: 6
+                            }]
+                        },
+                        options: {
+                            cutout: '72%',
+                            layout: { padding: 35 },
+                            plugins: {
+                                legend: { display: false },
+                                tooltip: { enabled: false }
+                            },
+                            animation: { animateRotate: true, duration: 1000 }
+                        },
+                        plugins: [{
+                            id: 'outerGlow',
+                            beforeDraw(chart) {
+                                const { ctx, width, height } = chart;
+                                const centerX = width / 2;
+                                const centerY = height / 2;
+                                const radius = chart.getDatasetMeta(0).data[0]?.outerRadius;
+                                if (!radius) return;
+
+                                const glow = ctx.createRadialGradient(centerX, centerY, radius * 0.9, centerX, centerY, radius * 1.3);
+                                glow.addColorStop(0, 'rgba(93,169,255,0.25)');
+                                glow.addColorStop(1, 'rgba(93,169,255,0)');
+
+                                ctx.save();
+                                ctx.fillStyle = glow;
+                                ctx.beginPath();
+                                ctx.arc(centerX, centerY, radius * 1.3, 0, Math.PI * 2);
+                                ctx.fill();
+                                ctx.restore();
+                            }
+                        },
+                        {
+                            id: 'externalLabels',
+                            afterDraw(chart) {
+                                const { ctx } = chart;
+                                const meta = chart.getDatasetMeta(0);
+                                meta.data.forEach((arc, i) => {
+                                    const val = values[i];
+                                    const percent = ((val / total) * 100).toFixed(0);
+                                    const angle = (arc.startAngle + arc.endAngle) / 2;
+                                    const radius = arc.outerRadius + 22;
+                                    const x = chart.width / 2 + Math.cos(angle) * radius;
+                                    const y = chart.height / 2 + Math.sin(angle) * radius;
+
+                                    ctx.save();
+                                    ctx.fillStyle = '#E5E7EB';
+                                    ctx.font = "11px 'Noto Sans TC'";
+                                    ctx.textAlign = angle > Math.PI/2 && angle < 3*Math.PI/2 ? 'right' : 'left';
+                                    ctx.fillText(`${labels[i]} ${percent}% $${Math.round(val)}`, x, y);
+                                    ctx.restore();
+                                });
+
+                                ctx.save();
+                                ctx.fillStyle = '#F5F7FA';
+                                ctx.textAlign = 'center';
+                                ctx.font = "13px 'Noto Sans TC'";
+                                ctx.fillText('總支出', chart.width / 2, chart.height / 2 - 6);
+                                ctx.font = "bold 20px 'Noto Sans TC'";
+                                ctx.fillText(`$${Math.round(total)}`, chart.width / 2, chart.height / 2 + 18);
+                                ctx.restore();
+                            }
+                        }]
                     });
                 });
             });
 
-            // 核心邏輯
-            async function fetchProjects() { const { data } = await client.from('projects').select('*').order('created_at', { ascending: false }); projects.value = data || []; }
+            async function fetchProjects() { 
+                const { data } = await client.from('projects').select('*').order('created_at', { ascending: false }); 
+                projects.value = data || [];
+            }
             async function enterProject(id) { currentProjectId.value = id; window.history.pushState({}, '', `?pid=${id}`); await loadData(); }
             async function loadData() {
                 const { data: p } = await client.from('projects').select('*').eq('id', currentProjectId.value).single(); projectMeta.value = p || {};
                 const { data: m } = await client.from('members').select('*').eq('project_id', currentProjectId.value).order('id'); members.value = m || [];
                 const { data: e } = await client.from('expenses').select('*').eq('project_id', currentProjectId.value).order('created_at'); expenses.value = e || [];
+                validateBeforeSettlement();
             }
             async function manualRefresh() { isRefreshing.value = true; await loadData(); setTimeout(() => isRefreshing.value = false, 500); }
             async function createProject() { if (!newProjectTitle.value.trim()) return; const { data } = await client.from('projects').insert({ name: newProjectTitle.value }).select().single(); enterProject(data.id); }
             function startEditProject(p) { editingProjectId.value = p.id; editingProjectName.value = p.name; editingProjectDate.value = formatDate(p.created_at); }
             async function saveProjectName(id) { await client.from('projects').update({ name: editingProjectName.value, created_at: editingProjectDate.value }).eq('id', id); editingProjectId.value = null; fetchProjects(); }
-            async function deleteProject(id) { if (confirm('確定刪除專案？')) { await client.from('projects').delete().eq('id', id); fetchProjects(); } }
-            async function addMember() { await client.from('members').insert({ project_id: currentProjectId.value, name: `成員${members.value.length + 1}` }); await loadData(); }
+            async function deleteProject(id) { if (confirm('確定刪除？')) { await client.from('projects').delete().eq('id', id); fetchProjects(); } }
+            async function addMember() {
+                const existNum = members.value.map(m => { const res = m.name.match(/^成員(\d+)$/); return res ? Number(res[1]) : null; }).filter(n => n !== null);
+                let i = 1; while (existNum.includes(i)) i++;
+                await client.from('members').insert({ project_id: currentProjectId.value, name: `成員${i}` }); await loadData();
+            }
             async function updateMember(m) { await client.from('members').update({name: m.name}).eq('id', m.id); }
-            async function deleteMember(id) { if (confirm('確定刪除成員？')) { await client.from('members').delete().eq('id', id); await loadData(); } }
-            
+            async function deleteMember(id) { 
+                if (confirm('確定刪除成員？')) { 
+                    await client.from('members').delete().eq('id', id);
+                    await loadData();
+                } 
+            }
+            function validateBeforeSettlement() {
+                invalidExpenseIds.value = [];
+                expenses.value.forEach(exp => {
+                    const total = Math.round(Number(exp.amount) * 100);
+                    const paySum = Object.values(exp.payers || {}).reduce((a,b)=> a + Math.round(Number(b)*100), 0);
+                    const splitSum = Object.values(exp.split_details || {}).reduce((a,b)=> a + Math.round(Number(b)*100), 0);
+                    if (Math.abs(total - paySum) > 1 || Math.abs(total - splitSum) > 1) invalidExpenseIds.value.push(exp.id);
+                });
+                return invalidExpenseIds.value.length === 0;
+            }
+            function handleSettlementClick() { if (!validateBeforeSettlement()) { alert('金額不平衡'); return; } showSettlement.value = true; }
             function openAddExpense() {
                 isEditing.value = false;
-                form.value = { title:'', amount:'', date:new Date().toISOString().split('T')[0], category:'', pMode:'equal', pList:members.value.length > 0 ? [members.value[0].id] : [], manualP:{}, sMode:'equal', sList:members.value.map(m=>m.id), manualS:{} };
+                form.value = { title: '', amount: '', date: new Date().toISOString().split('T')[0], category: '', pMode: 'equal', pList: members.value.length > 0 ? [members.value[0].id] : [], manualP: {}, sMode: 'equal', sList: members.value.map(m=>m.id), manualS: {} };
                 members.value.forEach(m => { form.value.manualP[m.id] = 0; form.value.manualS[m.id] = 0; });
                 showModal.value = true;
             }
             function openEditExpense(e) {
                 isEditing.value = true; editingExpenseId.value = e.id;
-                form.value = { title:e.title, amount:e.amount, date:e.date, category:e.category || '', pMode:'manual', pList:[], manualP:{...e.payers}, sMode:'manual', sList:[], manualS:{...e.split_details} };
-                members.value.forEach(m => { if(!form.value.manualP[m.id]) form.value.manualP[m.id]=0; if(!form.value.manualS[m.id]) form.value.manualS[m.id]=0; });
+                form.value = {
+                    title: e.title, amount: e.amount, date: e.date, category: e.category || '',
+                    pMode: 'equal', pList: Object.keys(e.payers).map(Number), manualP: {...e.payers},
+                    sMode: 'equal', sList: Object.keys(e.split_details).map(Number), manualS: {...e.split_details}
+                };
                 showModal.value = true;
             }
-            const isValid = computed(() => {
-                if(!form.value.title || Number(form.value.amount) <= 0) return false;
-                if(form.value.pMode === 'manual' && Math.abs(payManualDiff.value) > 0.1) return false;
-                if(form.value.sMode === 'manual' && Math.abs(splitManualDiff.value) > 0.1) return false;
-                return true;
-            });
+            const payManualDiff = computed(() => Number(form.value.amount) - Object.values(form.value.manualP).reduce((a,b)=>a+(Number(b)||0), 0));
+            const splitManualDiff = computed(() => Number(form.value.amount) - Object.values(form.value.manualS).reduce((a,b)=>a+(Number(b)||0), 0));
+            const isValid = computed(() => form.value.title && Number(form.value.amount) > 0);
             async function submitExpense() {
                 let p = {}, s = {}; const totalCents = Math.round(form.value.amount * 100);
-                if(form.value.pMode === 'equal') {
-                    const avg = Math.floor(totalCents / form.value.pList.length); form.value.pList.forEach(id => p[id] = avg/100); p[form.value.pList[0]] = (avg + (totalCents % form.value.pList.length))/100;
-                } else { p = form.value.manualP; }
-                if(form.value.sMode === 'equal') {
-                    const avg = Math.floor(totalCents / form.value.sList.length); form.value.sList.forEach(id => s[id] = avg/100); s[form.value.sList[0]] = (avg + (totalCents % form.value.sList.length))/100;
-                } else { s = form.value.manualS; }
+                const avg = Math.floor(totalCents / form.value.pList.length); form.value.pList.forEach(id => p[id] = avg / 100); p[form.value.pList[0]] = (avg + (totalCents % form.value.pList.length)) / 100;
+                const avgS = Math.floor(totalCents / form.value.sList.length); form.value.sList.forEach(id => s[id] = avgS / 100); s[form.value.sList[0]] = (avgS + (totalCents % form.value.sList.length)) / 100;
                 const payload = { project_id: currentProjectId.value, title: form.value.title, amount: form.value.amount, date: form.value.date, category: form.value.category, payers: p, split_details: s };
                 if(isEditing.value) await client.from('expenses').update(payload).eq('id', editingExpenseId.value); else await client.from('expenses').insert(payload);
                 showModal.value = false; loadData();
@@ -329,11 +446,11 @@
                     for(let id in e.payers) if(bal[id] !== undefined) bal[id] += Math.round(Number(e.payers[id]) * 100);
                     for(let id in e.split_details) if(bal[id] !== undefined) bal[id] -= Math.round(Number(e.split_details[id]) * 100);
                 });
-                const details = members.value.map(m => ({ id:m.id, name:m.name, net:bal[m.id]/100 }));
+                const details = members.value.map(m => ({ id: m.id, name: m.name, net: bal[m.id]/100 }));
                 let ts = [], ds = details.filter(x=>x.net < -0.01), cs = details.filter(x=>x.net > 0.01);
                 let i=0, j=0; while(i < ds.length && j < cs.length) {
                     let amt = Math.min(Math.abs(ds[i].net), cs[j].net);
-                    ts.push({from:ds[i].name, to:cs[j].name, amount:amt});
+                    ts.push({from: ds[i].name, to: cs[j].name, amount: amt});
                     ds[i].net += amt; cs[j].net -= amt; if(Math.abs(ds[i].net)<0.01) i++; if(cs[j].net<0.01) j++;
                 }
                 return { transfers: ts };
@@ -343,7 +460,7 @@
                 if (isLocked.value) { if (pin.value === adminPass.value) { isLocked.value = false; currentProjectId.value = null; pin.value = ''; fetchProjects(); } else { alert('PIN 錯誤'); pin.value = ''; } } 
                 else if (showPassSettings.value) { await client.from('app_settings').upsert({ id: 'admin_password', value: pin.value }); adminPass.value = pin.value; showPassSettings.value = false; pin.value = ''; } 
             }
-            const pinContext = computed(() => isLocked.value ? {title:'解鎖'} : {title:'設定 PIN'});
+            const pinContext = computed(() => isLocked.value ? {title:'管理員解鎖'} : {title:'設定新密碼'});
             const backToHome = () => { if (adminPass.value) { isLocked.value = true; pin.value = ''; } else { currentProjectId.value = null; fetchProjects(); } };
             const closePinPad = () => { isLocked.value = false; showPassSettings.value = false; pin.value = ''; };
             const triggerPassSetup = () => { pin.value = ''; showPassSettings.value = true; };
@@ -351,9 +468,8 @@
             function toggleMemberSplit(id) { const i = form.value.sList.indexOf(id); if (i > -1) form.value.sList.splice(i, 1); else form.value.sList.push(id); }
             function toggleAllSplit() { if (form.value.sList.length === members.value.length) form.value.sList = []; else form.value.sList = members.value.map(m => m.id); }
             function copyLink() { navigator.clipboard.writeText(window.location.href); showToast.value = true; setTimeout(() => showToast.value = false, 2000); }
-            function handleSettlementClick() { showSettlement.value = true; }
 
-            return { projects, currentProjectId, projectMeta, members, expenses, showModal, showSettlement, isEditing, form, isValid, totalExpense, memberStats, settlement, isLocked, pin, pinContext, showPassSettings, newProjectTitle, showToast, isRefreshing, editingProjectId, editingProjectName, editingProjectDate, formatDate, getPayerDisplay, fetchProjects, createProject, enterProject, loadData, manualRefresh, startEditProject, saveProjectName, deleteProject, addMember, updateMember, deleteMember, openAddExpense, openEditExpense, toggleMemberPay, toggleMemberSplit, toggleAllSplit, submitExpense, deleteExpense, pressPin, handlePinComplete, backToHome, closePinPad, triggerPassSetup, copyLink, invalidExpenseIds, handleSettlementClick, categoryStats, getPaletteColor, payManualDiff, splitManualDiff };
+            return { projects, currentProjectId, projectMeta, members, expenses, showModal, showSettlement, isEditing, form, isValid, totalExpense, memberStats, settlement, isLocked, pin, pinContext, showPassSettings, newProjectTitle, showToast, isRefreshing, editingProjectId, editingProjectName, editingProjectDate, formatDate, getPayerDisplay, getSplitCount, fetchProjects, createProject, enterProject, loadData, manualRefresh, startEditProject, saveProjectName, deleteProject, addMember, updateMember, deleteMember, openAddExpense, openEditExpense, toggleMemberPay, toggleMemberSplit, toggleAllSplit, submitExpense, deleteExpense, pressPin, handlePinComplete, backToHome, closePinPad, triggerPassSetup, copyLink, payManualDiff, splitManualDiff, invalidExpenseIds, handleSettlementClick, categoryStats };
         }
     }).mount('#app');
 </script>
