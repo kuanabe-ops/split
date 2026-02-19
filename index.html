@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Split. - Apple Fitness Edition</title>
+    <title>Split.</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
@@ -32,6 +32,8 @@
         [v-cloak] { display: none; }
         .fade-enter-active, .fade-leave-active { transition: opacity 0.5s; }
         .fade-enter-from, .fade-leave-to { opacity: 0; }
+        .delete-btn-raw { color: #6B7280; transition: color 0.2s; }
+        .delete-btn-raw:hover { color: #F87171; }
         .rotate-anim { animation: rotate 0.5s ease-in-out; }
         @keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
     </style>
@@ -85,7 +87,8 @@
                 {{ projectMeta.name }}
             </h2>
             <div class="flex items-center gap-1 z-10">
-                <button @click="manualRefresh" class="p-2 text-gray-500 hover:text-white transition-colors" :class="{'rotate-anim': isRefreshing}">
+                <button @click="manualRefresh" class="p-2 text-gray-500 hover:text-white transition-colors"
+                    :class="{'rotate-anim': isRefreshing}">
                     <i data-lucide="refresh-cw" class="w-5 h-5"></i>
                 </button>
                 <button @click="copyLink" class="p-2 text-gray-500 hover:text-white">
@@ -99,17 +102,12 @@
         </div>
 
         <main class="flex-1 overflow-y-auto pt-2 pb-36 pr-1">
-            <div class="mb-14 flex flex-col items-center">
+            <div class="mb-10 px-2 text-center">
                 <h3 class="text-sm text-blue-300 tracking-[0.3em] uppercase f-medium mb-6">個人支出</h3>
-                <div class="space-y-3 w-full max-w-[260px] bg-white/5 p-6 rounded-[28px] border border-white/10 backdrop-blur-xl">
-                    <div v-for="m in members" :key="m.id" class="flex justify-between text-sm">
-                        <span class="f-medium text-blue-300">{{m.name}}</span>
-                        <span class="f-medium text-white">${{ (memberStats[m.id] || 0).toLocaleString() }}</span>
-                    </div>
+                <div class="space-y-3 max-w-[240px] mx-auto bg-white/5 p-5 rounded-[24px] border border-white/10">
+                    <div v-for="m in members" :key="m.id" class="flex justify-between text-sm"><span class="f-medium text-blue-300">{{m.name}}</span><span class="f-medium text-white">${{ (memberStats[m.id] || 0).toLocaleString() }}</span></div>
                 </div>
-                <div class="mt-8 text-sm text-blue-300 f-medium tracking-wider">
-                    總支出 ${{ totalExpense.toLocaleString() }}
-                </div>
+                <div class="mt-6 text-center text-sm text-blue-300 f-medium tracking-wider">總支出 ${{ totalExpense.toLocaleString() }}</div>
                 <button @click="handleSettlementClick" class="mt-10 bg-white text-black px-10 py-3 rounded-full text-sm f-medium tracking-wider shadow-lg active:scale-95 transition-all">查看結算</button>
             </div>
             
@@ -119,7 +117,7 @@
                     <div v-for="m in members" :key="m.id" class="flex items-center gap-3 p-4 card">
                         <input v-model="m.name" @blur="updateMember(m)" class="flex-1 min-w-0 bg-transparent outline-none text-sm f-medium text-white">
                         <button @mousedown.prevent="deleteMember(m.id)" class="delete-btn-raw p-1">
-                            <i data-lucide="x" class="w-4 h-4"></i>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                         </button>
                     </div>
                 </div>
@@ -204,13 +202,9 @@
             <p v-if="settlement.transfers.length === 0" class="text-center text-blue-300 py-10">目前無須轉帳</p>
         </div>
 
-        <div class="mt-20">
-            <h2 class="text-3xl f-light text-white mb-6">分類統計</h2>
-            <div class="pb-16 flex justify-center">
-                <div class="w-[260px]">
-                    <canvas id="categoryChart"></canvas>
-                </div>
-            </div>
+        <div class="mt-20 pb-12">
+            <h2 class="text-3xl f-light text-white mb-12">分類統計</h2>
+            <canvas id="categoryChart"></canvas>
         </div>
     </div>
 </div>
@@ -265,7 +259,7 @@
                 return map;
             });
 
-            // --- Apple Fitness 風格 Chart 升級版 ---
+            // 更新：超高質感漸層甜甜圈圖 + 標籤繪製
             let chartInstance = null;
             watch(showSettlement, (val) => {
                 if (!val) return;
@@ -275,23 +269,24 @@
                     if (!canvas) return;
 
                     const ctx = canvas.getContext('2d');
+
                     if (chartInstance) chartInstance.destroy();
 
                     const labels = Object.keys(categoryStats.value);
                     const values = Object.values(categoryStats.value);
                     const total = values.reduce((a,b)=>a+b,0);
 
-                    const palette = [
-                        ['#5DA9FF', '#1C4ED8'],
-                        ['#4FD1C5', '#0F766E'],
-                        ['#F6AD55', '#C05621'],
-                        ['#F56565', '#9B2C2C'],
-                        ['#B794F4', '#6B46C1'],
-                        ['#94A3B8', '#334155']
-                    ];
-
+                    // 建立漸層色
                     const gradients = labels.map((_, i) => {
-                        const g = ctx.createLinearGradient(0, 0, 0, 260);
+                        const g = ctx.createLinearGradient(0, 0, 0, 300);
+                        const palette = [
+                            ['#60A5FA', '#1D4ED8'],
+                            ['#34D399', '#059669'],
+                            ['#FBBF24', '#D97706'],
+                            ['#F87171', '#DC2626'],
+                            ['#A78BFA', '#7C3AED'],
+                            ['#94A3B8', '#475569']
+                        ];
                         const pair = palette[i % palette.length];
                         g.addColorStop(0, pair[0]);
                         g.addColorStop(1, pair[1]);
@@ -306,65 +301,53 @@
                                 data: values,
                                 backgroundColor: gradients,
                                 borderWidth: 0,
-                                hoverOffset: 6
+                                hoverOffset: 8
                             }]
                         },
                         options: {
-                            cutout: '72%',
-                            layout: { padding: 35 },
+                            cutout: '65%',
+                            animation: {
+                                animateRotate: true,
+                                duration: 900
+                            },
                             plugins: {
                                 legend: { display: false },
                                 tooltip: { enabled: false }
-                            },
-                            animation: { animateRotate: true, duration: 1000 }
-                        },
-                        plugins: [{
-                            id: 'outerGlow',
-                            beforeDraw(chart) {
-                                const { ctx, width, height } = chart;
-                                const centerX = width / 2;
-                                const centerY = height / 2;
-                                const radius = chart.getDatasetMeta(0).data[0]?.outerRadius;
-                                if (!radius) return;
-
-                                const glow = ctx.createRadialGradient(centerX, centerY, radius * 0.9, centerX, centerY, radius * 1.3);
-                                glow.addColorStop(0, 'rgba(93,169,255,0.25)');
-                                glow.addColorStop(1, 'rgba(93,169,255,0)');
-
-                                ctx.save();
-                                ctx.fillStyle = glow;
-                                ctx.beginPath();
-                                ctx.arc(centerX, centerY, radius * 1.3, 0, Math.PI * 2);
-                                ctx.fill();
-                                ctx.restore();
                             }
                         },
-                        {
-                            id: 'externalLabels',
+                        plugins: [{
+                            id: 'customLabels',
                             afterDraw(chart) {
                                 const { ctx } = chart;
                                 const meta = chart.getDatasetMeta(0);
+
                                 meta.data.forEach((arc, i) => {
                                     const val = values[i];
                                     const percent = ((val / total) * 100).toFixed(0);
-                                    const angle = (arc.startAngle + arc.endAngle) / 2;
-                                    const radius = arc.outerRadius + 22;
-                                    const x = chart.width / 2 + Math.cos(angle) * radius;
-                                    const y = chart.height / 2 + Math.sin(angle) * radius;
+
+                                    const pos = arc.tooltipPosition();
 
                                     ctx.save();
-                                    ctx.fillStyle = '#E5E7EB';
+                                    ctx.fillStyle = '#F5F7FA';
+                                    ctx.font = "12px 'Noto Sans TC'";
+                                    ctx.textAlign = 'center';
+
+                                    ctx.fillText(labels[i], pos.x, pos.y - 8);
+                                    ctx.font = "bold 13px 'Noto Sans TC'";
+                                    ctx.fillText(`${percent}%`, pos.x, pos.y + 6);
                                     ctx.font = "11px 'Noto Sans TC'";
-                                    ctx.textAlign = angle > Math.PI/2 && angle < 3*Math.PI/2 ? 'right' : 'left';
-                                    ctx.fillText(`${labels[i]} ${percent}% $${Math.round(val)}`, x, y);
+                                    ctx.fillText(`$${Math.round(val)}`, pos.x, pos.y + 22);
+
                                     ctx.restore();
                                 });
 
+                                // 中央總金額
                                 ctx.save();
                                 ctx.fillStyle = '#F5F7FA';
+                                ctx.font = "14px 'Noto Sans TC'";
                                 ctx.textAlign = 'center';
-                                ctx.font = "13px 'Noto Sans TC'";
-                                ctx.fillText('總支出', chart.width / 2, chart.height / 2 - 6);
+                                ctx.fillText('總支出', chart.width / 2, chart.height / 2 - 8);
+
                                 ctx.font = "bold 20px 'Noto Sans TC'";
                                 ctx.fillText(`$${Math.round(total)}`, chart.width / 2, chart.height / 2 + 18);
                                 ctx.restore();
@@ -374,8 +357,12 @@
                 });
             });
 
+            // 更新：依建立日期倒序排列（最新在最上面）
             async function fetchProjects() { 
-                const { data } = await client.from('projects').select('*').order('created_at', { ascending: false }); 
+                const { data } = await client
+                    .from('projects')
+                    .select('*')
+                    .order('created_at', { ascending: false }); 
                 projects.value = data || [];
             }
             async function enterProject(id) { currentProjectId.value = id; window.history.pushState({}, '', `?pid=${id}`); await loadData(); }
@@ -386,60 +373,116 @@
                 validateBeforeSettlement();
             }
             async function manualRefresh() { isRefreshing.value = true; await loadData(); setTimeout(() => isRefreshing.value = false, 500); }
+
             async function createProject() { if (!newProjectTitle.value.trim()) return; const { data } = await client.from('projects').insert({ name: newProjectTitle.value }).select().single(); enterProject(data.id); }
             function startEditProject(p) { editingProjectId.value = p.id; editingProjectName.value = p.name; editingProjectDate.value = formatDate(p.created_at); }
             async function saveProjectName(id) { await client.from('projects').update({ name: editingProjectName.value, created_at: editingProjectDate.value }).eq('id', id); editingProjectId.value = null; fetchProjects(); }
             async function deleteProject(id) { if (confirm('確定刪除？')) { await client.from('projects').delete().eq('id', id); fetchProjects(); } }
+
             async function addMember() {
                 const existNum = members.value.map(m => { const res = m.name.match(/^成員(\d+)$/); return res ? Number(res[1]) : null; }).filter(n => n !== null);
                 let i = 1; while (existNum.includes(i)) i++;
                 await client.from('members').insert({ project_id: currentProjectId.value, name: `成員${i}` }); await loadData();
             }
             async function updateMember(m) { await client.from('members').update({name: m.name}).eq('id', m.id); }
+
             async function deleteMember(id) { 
-                if (confirm('確定刪除成員？')) { 
+                if (confirm('確定刪除成員？該成員在花費中的紀錄也會被清理。')) { 
+                    const sid = String(id);
+                    const updates = [];
+
+                    expenses.value.forEach(exp => {
+                        let p = { ...exp.payers };
+                        let s = { ...exp.split_details };
+                        let dirty = false;
+
+                        if (p[sid] !== undefined || p[id] !== undefined) { delete p[sid]; delete p[id]; dirty = true; }
+                        if (s[sid] !== undefined || s[id] !== undefined) { delete s[sid]; delete s[id]; dirty = true; }
+                        if (!dirty) return;
+
+                        const sVals = Object.values(s).map(Number);
+                        if (sVals.length > 1 && sVals.every(v => Math.abs(v - sVals[0]) < 0.01)) {
+                            const rIds = Object.keys(s); const cents = Math.round(Number(exp.amount) * 100);
+                            const avg = Math.floor(cents / rIds.length);
+                            rIds.forEach(mid => s[mid] = avg / 100);
+                            s[rIds[0]] = (avg + (cents % rIds.length)) / 100;
+                        }
+                        const pVals = Object.values(p).map(Number);
+                        if (pVals.length > 1 && pVals.every(v => Math.abs(v - pVals[0]) < 0.01)) {
+                            const rIds = Object.keys(p); const cents = Math.round(Number(exp.amount) * 100);
+                            const avg = Math.floor(cents / rIds.length);
+                            rIds.forEach(mid => p[mid] = avg / 100);
+                            p[rIds[0]] = (avg + (cents % rIds.length)) / 100;
+                        }
+                        updates.push(client.from('expenses').update({ payers: p, split_details: s }).eq('id', exp.id));
+                    });
+                    if (updates.length > 0) await Promise.all(updates);
                     await client.from('members').delete().eq('id', id);
                     await loadData();
                 } 
             }
+
             function validateBeforeSettlement() {
                 invalidExpenseIds.value = [];
                 expenses.value.forEach(exp => {
                     const total = Math.round(Number(exp.amount) * 100);
                     const paySum = Object.values(exp.payers || {}).reduce((a,b)=> a + Math.round(Number(b)*100), 0);
                     const splitSum = Object.values(exp.split_details || {}).reduce((a,b)=> a + Math.round(Number(b)*100), 0);
-                    if (Math.abs(total - paySum) > 1 || Math.abs(total - splitSum) > 1) invalidExpenseIds.value.push(exp.id);
+                    if (Math.abs(total - paySum) > 1 || Math.abs(total - splitSum) > 1) {
+                        invalidExpenseIds.value.push(exp.id);
+                    }
                 });
                 return invalidExpenseIds.value.length === 0;
             }
-            function handleSettlementClick() { if (!validateBeforeSettlement()) { alert('金額不平衡'); return; } showSettlement.value = true; }
+
+            function handleSettlementClick() {
+                if (!validateBeforeSettlement()) {
+                    alert('有花費金額尚未調整正確，請先修正標示紅色項目'); return;
+                }
+                showSettlement.value = true;
+            }
+
             function openAddExpense() {
                 isEditing.value = false;
                 form.value = { title: '', amount: '', date: new Date().toISOString().split('T')[0], category: '', pMode: 'equal', pList: members.value.length > 0 ? [members.value[0].id] : [], manualP: {}, sMode: 'equal', sList: members.value.map(m=>m.id), manualS: {} };
                 members.value.forEach(m => { form.value.manualP[m.id] = 0; form.value.manualS[m.id] = 0; });
                 showModal.value = true;
             }
+
             function openEditExpense(e) {
                 isEditing.value = true; editingExpenseId.value = e.id;
+                const activePayers = Object.keys(e.payers).filter(id => Number(e.payers[id]) > 0.01).map(Number);
+                const activeSplitters = Object.keys(e.split_details).filter(id => Number(e.split_details[id]) > 0.01).map(Number);
+                const pVals = activePayers.map(id => Number(e.payers[id]));
+                const sVals = activeSplitters.map(id => Number(e.split_details[id]));
+                const isPManual = pVals.length > 1 ? !pVals.every(v => Math.abs(v - pVals[0]) < 0.2) : false;
+                const isSManual = sVals.length > 1 ? !sVals.every(v => Math.abs(v - sVals[0]) < 0.2) : false;
                 form.value = {
                     title: e.title, amount: e.amount, date: e.date, category: e.category || '',
-                    pMode: 'equal', pList: Object.keys(e.payers).map(Number), manualP: {...e.payers},
-                    sMode: 'equal', sList: Object.keys(e.split_details).map(Number), manualS: {...e.split_details}
+                    pMode: isPManual ? 'manual' : 'equal', pList: activePayers, manualP: {...e.payers},
+                    sMode: isSManual ? 'manual' : 'equal', sList: activeSplitters, manualS: {...e.split_details}
                 };
+                members.value.forEach(m => {
+                    if (form.value.manualP[m.id] === undefined) form.value.manualP[m.id] = 0;
+                    if (form.value.manualS[m.id] === undefined) form.value.manualS[m.id] = 0;
+                });
                 showModal.value = true;
             }
+
             const payManualDiff = computed(() => Number(form.value.amount) - Object.values(form.value.manualP).reduce((a,b)=>a+(Number(b)||0), 0));
             const splitManualDiff = computed(() => Number(form.value.amount) - Object.values(form.value.manualS).reduce((a,b)=>a+(Number(b)||0), 0));
-            const isValid = computed(() => form.value.title && Number(form.value.amount) > 0);
+            const isValid = computed(() => form.value.title && Number(form.value.amount) > 0 && (form.value.pMode === 'manual' ? Math.abs(payManualDiff.value) < 1 : form.value.pList.length > 0) && (form.value.sMode === 'manual' ? Math.abs(splitManualDiff.value) < 1 : form.value.sList.length > 0));
+
             async function submitExpense() {
                 let p = {}, s = {}; const totalCents = Math.round(form.value.amount * 100);
-                const avg = Math.floor(totalCents / form.value.pList.length); form.value.pList.forEach(id => p[id] = avg / 100); p[form.value.pList[0]] = (avg + (totalCents % form.value.pList.length)) / 100;
-                const avgS = Math.floor(totalCents / form.value.sList.length); form.value.sList.forEach(id => s[id] = avgS / 100); s[form.value.sList[0]] = (avgS + (totalCents % form.value.sList.length)) / 100;
+                if (form.value.pMode === 'equal') { const avg = Math.floor(totalCents / form.value.pList.length); form.value.pList.forEach(id => p[id] = avg / 100); p[form.value.pList[0]] = (avg + (totalCents % form.value.pList.length)) / 100; } else p = form.value.manualP;
+                if (form.value.sMode === 'equal') { const avg = Math.floor(totalCents / form.value.sList.length); form.value.sList.forEach(id => s[id] = avg / 100); s[form.value.sList[0]] = (avg + (totalCents % form.value.sList.length)) / 100; } else s = form.value.manualS;
                 const payload = { project_id: currentProjectId.value, title: form.value.title, amount: form.value.amount, date: form.value.date, category: form.value.category, payers: p, split_details: s };
                 if(isEditing.value) await client.from('expenses').update(payload).eq('id', editingExpenseId.value); else await client.from('expenses').insert(payload);
                 showModal.value = false; loadData();
             }
-            async function deleteExpense() { if (confirm('確定刪除？')) { await client.from('expenses').delete().eq('id', editingExpenseId.value); showModal.value=false; loadData(); } }
+            async function deleteExpense() { if (confirm('確定刪除花費？')) { await client.from('expenses').delete().eq('id', editingExpenseId.value); showModal.value=false; loadData(); } }
+
             const settlement = computed(() => {
                 let bal = {}; members.value.forEach(m => bal[m.id]=0);
                 expenses.value.forEach(e => {
@@ -447,7 +490,7 @@
                     for(let id in e.split_details) if(bal[id] !== undefined) bal[id] -= Math.round(Number(e.split_details[id]) * 100);
                 });
                 const details = members.value.map(m => ({ id: m.id, name: m.name, net: bal[m.id]/100 }));
-                let ts = [], ds = details.filter(x=>x.net < -0.01), cs = details.filter(x=>x.net > 0.01);
+                let ts = [], ds = details.filter(x=>x.net < -0.01).sort((a,b)=>a.net-b.net), cs = details.filter(x=>x.net > 0.01).sort((a,b)=>b.net-a.net);
                 let i=0, j=0; while(i < ds.length && j < cs.length) {
                     let amt = Math.min(Math.abs(ds[i].net), cs[j].net);
                     ts.push({from: ds[i].name, to: cs[j].name, amount: amt});
@@ -455,11 +498,9 @@
                 }
                 return { transfers: ts };
             });
+
             function pressPin(n) { if (pin.value.length < 4) pin.value += n; if (pin.value.length === 4) handlePinComplete(); }
-            async function handlePinComplete() { 
-                if (isLocked.value) { if (pin.value === adminPass.value) { isLocked.value = false; currentProjectId.value = null; pin.value = ''; fetchProjects(); } else { alert('PIN 錯誤'); pin.value = ''; } } 
-                else if (showPassSettings.value) { await client.from('app_settings').upsert({ id: 'admin_password', value: pin.value }); adminPass.value = pin.value; showPassSettings.value = false; pin.value = ''; } 
-            }
+            async function handlePinComplete() { if (isLocked.value) { if (pin.value === adminPass.value) { isLocked.value = false; currentProjectId.value = null; pin.value = ''; fetchProjects(); } else { alert('PIN 錯誤'); pin.value = ''; } } else if (showPassSettings.value) { await client.from('app_settings').upsert({ id: 'admin_password', value: pin.value }); adminPass.value = pin.value; showPassSettings.value = false; pin.value = ''; } }
             const pinContext = computed(() => isLocked.value ? {title:'管理員解鎖'} : {title:'設定新密碼'});
             const backToHome = () => { if (adminPass.value) { isLocked.value = true; pin.value = ''; } else { currentProjectId.value = null; fetchProjects(); } };
             const closePinPad = () => { isLocked.value = false; showPassSettings.value = false; pin.value = ''; };
