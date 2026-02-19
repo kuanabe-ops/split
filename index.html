@@ -91,19 +91,19 @@
 
         <main class="flex-1 overflow-y-auto pt-4 pb-36 pr-1">
             <div class="mb-10 px-2 text-center">
-                <h3 class="text-xs text-gray-500 tracking-[0.3em] uppercase f-medium mb-6">個人支出</h3>
+                <h3 class="text-sm text-yellow-400 tracking-[0.3em] uppercase f-medium mb-6">個人支出</h3>
                 <div class="space-y-3 max-w-[240px] mx-auto bg-white/5 p-5 rounded-[24px] border border-white/10">
-                    <div v-for="m in members" :key="m.id" class="flex justify-between text-[12px]"><span class="f-medium text-gray-500">{{m.name}}</span><span class="f-medium text-white">${{ (memberStats[m.id] || 0).toLocaleString() }}</span></div>
+                    <div v-for="m in members" :key="m.id" class="flex justify-between text-[14px]"><span class="f-medium text-yellow-400">{{m.name}}</span><span class="f-medium text-white">${{ (memberStats[m.id] || 0).toLocaleString() }}</span></div>
                 </div>
-                <div class="mt-6 text-center text-xs text-gray-500 f-medium tracking-wider">總支出 ${{ totalExpense.toLocaleString() }}</div>
+                <div class="mt-6 text-center text-sm text-yellow-400 f-medium tracking-wider">總支出 ${{ totalExpense.toLocaleString() }}</div>
                 <button @click="handleSettlementClick" class="mt-10 bg-white text-black px-10 py-3 rounded-full text-sm f-medium tracking-wider shadow-lg active:scale-95 transition-all">查看結算</button>
             </div>
             
             <section class="mb-10">
-                <div class="flex justify-between items-center mb-4 px-2"><h3 class="text-[10px] text-gray-500 tracking-[0.3em] uppercase f-medium">成員</h3><button @click="addMember" class="text-lg text-white f-medium px-2">＋</button></div>
+                <div class="flex justify-between items-center mb-4 px-2"><h3 class="text-sm text-yellow-400 tracking-[0.3em] uppercase f-medium">成員</h3><button @click="addMember" class="text-lg text-white f-medium px-2">＋</button></div>
                 <div class="grid grid-cols-2 gap-3">
                     <div v-for="m in members" :key="m.id" class="flex items-center gap-3 p-4 card">
-                        <input v-model="m.name" @blur="updateMember(m)" class="flex-1 min-w-0 bg-transparent outline-none text-xs f-medium text-white">
+                        <input v-model="m.name" @blur="updateMember(m)" class="flex-1 min-w-0 bg-transparent outline-none text-sm f-medium text-white">
                         <button @mousedown.prevent="deleteMember(m.id)" class="delete-btn-raw p-1">
                             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                         </button>
@@ -112,12 +112,12 @@
             </section>
 
             <section>
-                <div class="flex justify-between items-center mb-4 px-2"><h3 class="text-[10px] text-gray-500 tracking-[0.3em] uppercase f-medium">花費</h3><button @click="openAddExpense" class="text-lg text-white f-medium px-2">＋</button></div>
+                <div class="flex justify-between items-center mb-4 px-2"><h3 class="text-sm text-yellow-400 tracking-[0.3em] uppercase f-medium">花費</h3><button @click="openAddExpense" class="text-lg text-white f-medium px-2">＋</button></div>
                 <div v-for="exp in expenses" :key="exp.id" @click="openEditExpense(exp)" 
                      :class="['card p-5 mb-3 flex justify-between items-center active:scale-[0.98] transition-all', invalidExpenseIds.includes(exp.id) ? 'border border-red-500/40 bg-red-500/5' : '']">
                     <div class="flex-1 truncate pr-3">
-                        <p class="text-sm f-medium mb-1 truncate text-white">{{ exp.title }}</p>
-                        <p class="text-[11px] text-gray-500 f-medium">{{ getPayerDisplay(exp) }} · {{ getSplitCount(exp) }} 人分攤</p>
+                        <p class="text-base f-medium mb-1 truncate text-white">{{ exp.title }}</p>
+                        <p class="text-xs text-yellow-400 f-medium">{{ getPayerDisplay(exp) }} · {{ getSplitCount(exp) }} 人分攤</p>
                     </div>
                     <div class="text-right">
                         <span class="f-medium text-lg tracking-tight text-white">${{ Number(exp.amount).toLocaleString() }}</span>
@@ -196,7 +196,6 @@
             const newProjectTitle = ref(''); const showToast = ref(false); const isRefreshing = ref(false);
             const form = ref({ title: '', amount: '', date: '', pMode: 'equal', pList: [], manualP: {}, sMode: 'equal', sList: [], manualS: {} });
             
-            // 新增：檢核異常 ID
             const invalidExpenseIds = ref([]);
 
             const refreshIcons = () => nextTick(() => { if(window.lucide) lucide.createIcons(); });
@@ -229,7 +228,6 @@
                 const { data: p } = await client.from('projects').select('*').eq('id', currentProjectId.value).single(); projectMeta.value = p || {};
                 const { data: m } = await client.from('members').select('*').eq('project_id', currentProjectId.value).order('id'); members.value = m || [];
                 const { data: e } = await client.from('expenses').select('*').eq('project_id', currentProjectId.value).order('created_at'); expenses.value = e || [];
-                // 每次載入時重新跑一次檢核，清除上次的標記
                 validateBeforeSettlement();
             }
             async function manualRefresh() { isRefreshing.value = true; await loadData(); setTimeout(() => isRefreshing.value = false, 500); }
@@ -246,22 +244,17 @@
             }
             async function updateMember(m) { await client.from('members').update({name: m.name}).eq('id', m.id); }
 
-            // 升級版：智慧判斷模式刪除成員
             async function deleteMember(id) { 
                 if (confirm('確定刪除成員？該成員在花費中的紀錄也會被清理。')) { 
                     const sid = String(id);
                     const updates = [];
-
                     expenses.value.forEach(exp => {
                         let p = { ...exp.payers };
                         let s = { ...exp.split_details };
                         let dirty = false;
-
                         if (p[sid] !== undefined || p[id] !== undefined) { delete p[sid]; delete p[id]; dirty = true; }
                         if (s[sid] !== undefined || s[id] !== undefined) { delete s[sid]; delete s[id]; dirty = true; }
                         if (!dirty) return;
-
-                        // 判斷分攤是否平均
                         const sVals = Object.values(s).map(Number);
                         if (sVals.length > 1 && sVals.every(v => Math.abs(v - sVals[0]) < 0.01)) {
                             const rIds = Object.keys(s); const cents = Math.round(Number(exp.amount) * 100);
@@ -269,7 +262,6 @@
                             rIds.forEach(mid => s[mid] = avg / 100);
                             s[rIds[0]] = (avg + (cents % rIds.length)) / 100;
                         }
-                        // 判斷付款是否平均
                         const pVals = Object.values(p).map(Number);
                         if (pVals.length > 1 && pVals.every(v => Math.abs(v - pVals[0]) < 0.01)) {
                             const rIds = Object.keys(p); const cents = Math.round(Number(exp.amount) * 100);
@@ -285,7 +277,6 @@
                 } 
             }
 
-            // 新增：結算前檢核邏輯
             function validateBeforeSettlement() {
                 invalidExpenseIds.value = [];
                 expenses.value.forEach(exp => {
