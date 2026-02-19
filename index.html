@@ -103,7 +103,9 @@
 
         <main class="flex-1 overflow-y-auto pt-2 pb-36 px-1">
             <div class="mb-10 w-full flex flex-col items-center">
-                <h3 class="text-sm text-blue-300 tracking-[0.3em] uppercase f-medium mb-6 text-center w-full">個人支出</h3>
+                <h3 class="text-sm text-blue-300 tracking-[0.3em] uppercase f-medium mb-6 w-full text-center">
+                    個人支出
+                </h3>
                 <div class="space-y-3 w-full max-w-[240px] bg-white/5 p-5 rounded-[24px] border border-white/10">
                     <div v-for="m in members" :key="m.id" class="flex justify-between text-sm"><span class="f-medium text-blue-300">{{m.name}}</span><span class="f-medium text-white">${{ (memberStats[m.id] || 0).toLocaleString() }}</span></div>
                 </div>
@@ -204,29 +206,9 @@
 
         <div class="mt-20 pb-12 flex flex-col items-center">
             <h2 class="text-3xl f-light text-white mb-12 w-full text-left">分類統計</h2>
-
-            <div class="w-full flex justify-center mb-10">
-                <div class="w-1/2 relative">
+            <div class="w-full relative px-4 flex justify-center">
+                <div class="w-[60%]">
                     <canvas id="categoryChart"></canvas>
-                </div>
-            </div>
-
-            <div class="w-full space-y-4 px-4">
-                <div v-for="item in sortedCategoryArray" 
-                     class="flex justify-between items-center text-sm border-b border-white/5 pb-3">
-                    <div class="flex items-center gap-3">
-                        <div :style="{background: item.gradient[0]}" 
-                             class="w-3 h-3 rounded-full"></div>
-                        <span class="text-white/80">{{ item.name }}</span>
-                    </div>
-                    <div class="text-right">
-                        <div class="text-white f-medium">
-                            ${{ Math.round(item.amount).toLocaleString() }}
-                        </div>
-                        <div class="text-blue-300 text-xs">
-                            {{ item.percent }}%
-                        </div>
-                    </div>
                 </div>
             </div>
         </div>
@@ -283,33 +265,8 @@
                 return map;
             });
 
-            // 修改點 ②：替換整段 Chart.js 區塊
+            // ===== 圓餅圖重寫版本（依金額排序 + 60%尺寸 + 霧感色 + 下方圖例）=====
             let chartInstance = null;
-
-            const sortedCategoryArray = computed(() => {
-                const entries = Object.entries(categoryStats.value)
-                    .map(([name, amount]) => ({ name, amount }))
-                    .sort((a, b) => b.amount - a.amount);
-
-                const total = entries.reduce((a,b)=>a+b.amount,0);
-
-                const palette = [
-                    ['#7C8FA3','#4A5A6A'],
-                    ['#8AA399','#566B62'],
-                    ['#A39B8A','#6B6256'],
-                    ['#8F8AA3','#5C566B'],
-                    ['#9BA3A8','#5F6A73'],
-                    ['#A38F8F','#6B5757']
-                ];
-
-                return entries.map((item, i) => {
-                    return {
-                        ...item,
-                        percent: total ? ((item.amount/total)*100).toFixed(1) : 0,
-                        gradient: palette[i % palette.length]
-                    };
-                });
-            });
 
             watch(showSettlement, (val) => {
                 if (!val) return;
@@ -321,15 +278,29 @@
                     const ctx = canvas.getContext('2d');
                     if (chartInstance) chartInstance.destroy();
 
-                    const sorted = sortedCategoryArray.value;
-                    const labels = sorted.map(i=>i.name);
-                    const values = sorted.map(i=>i.amount);
+                    // 1️⃣ 依金額由大到小排序
+                    const sorted = Object.entries(categoryStats.value)
+                        .sort((a,b)=> b[1] - a[1]);
+
+                    const labels = sorted.map(i=>i[0]);
+                    const values = sorted.map(i=>i[1]);
                     const total = values.reduce((a,b)=>a+b,0);
 
-                    const gradients = sorted.map((item) => {
-                        const g = ctx.createLinearGradient(0, 0, 0, 260);
-                        g.addColorStop(0, item.gradient[0]);
-                        g.addColorStop(1, item.gradient[1]);
+                    // 2️⃣ 低飽和霧面玻璃色盤
+                    const palette = [
+                        ['#7C8CA3','#4E5D73'],
+                        ['#6F9A8D','#3F5F57'],
+                        ['#9A86A4','#5C4A6E'],
+                        ['#8F9DAA','#56616B'],
+                        ['#A88E78','#6B5A4E'],
+                        ['#7E8FA6','#465569']
+                    ];
+
+                    const gradients = labels.map((_, i) => {
+                        const g = ctx.createLinearGradient(0, 0, 0, 300);
+                        const pair = palette[i % palette.length];
+                        g.addColorStop(0, pair[0]);
+                        g.addColorStop(1, pair[1]);
                         return g;
                     });
 
@@ -345,12 +316,9 @@
                             }]
                         },
                         options: {
-                            cutout: '35%',   // 加厚
-                            animation: {
-                                animateRotate: true,
-                                duration: 1400,
-                                easing: 'easeOutQuart'
-                            },
+                            responsive: true,
+                            cutout: '65%', // 正常厚度
+                            layout: { padding: 0 },
                             plugins: {
                                 legend: { display: false },
                                 tooltip: { enabled: false }
@@ -363,14 +331,44 @@
                                 ctx.save();
                                 ctx.fillStyle = '#F5F7FA';
                                 ctx.textAlign = 'center';
-                                ctx.font = "12px 'Noto Sans TC'";
-                                ctx.fillText('總金額', chart.width / 2, chart.height / 2 - 10);
+                                ctx.font = "13px 'Noto Sans TC'";
+                                ctx.fillText('總支出', chart.width/2, chart.height/2 - 10);
                                 ctx.font = "bold 20px 'Noto Sans TC'";
-                                ctx.fillText(`$${Math.round(total).toLocaleString()}`, chart.width / 2, chart.height / 2 + 18);
+                                ctx.fillText(`$${Math.round(total).toLocaleString()}`, chart.width/2, chart.height/2 + 16);
                                 ctx.restore();
                             }
                         }]
                     });
+
+                    // 3️⃣ 建立下方圖例
+                    const legendContainer = document.getElementById('chartLegend');
+                    if (legendContainer) legendContainer.remove();
+
+                    const legend = document.createElement('div');
+                    legend.id = 'chartLegend';
+                    legend.className = "mt-10 space-y-3 w-full"; // 確保圖例寬度正確
+
+                    labels.forEach((label, i) => {
+                        const percent = ((values[i]/total)*100).toFixed(1);
+                        const row = document.createElement('div');
+                        row.className = "flex justify-between items-center text-sm";
+
+                        row.innerHTML = `
+                            <div class="flex items-center gap-3">
+                                <div style="width:12px;height:12px;border-radius:50%;background:${palette[i % palette.length][0]}"></div>
+                                <span class="text-blue-300 f-medium">${label}</span>
+                            </div>
+                            <div class="text-right">
+                                <span class="text-white f-medium">$${Math.round(values[i]).toLocaleString()}</span>
+                                <span class="text-gray-400 ml-2">${percent}%</span>
+                            </div>
+                        `;
+
+                        legend.appendChild(row);
+                    });
+
+                    // 將圖例掛在 60% 寬度容器之外，確保滿版寬度
+                    canvas.closest('.w-full').appendChild(legend);
                 });
             });
 
@@ -526,8 +524,7 @@
             function toggleAllSplit() { if (form.value.sList.length === members.value.length) form.value.sList = []; else form.value.sList = members.value.map(m => m.id); }
             function copyLink() { navigator.clipboard.writeText(window.location.href); showToast.value = true; setTimeout(() => showToast.value = false, 2000); }
 
-            // 修改點 ③：return 區塊加入 sortedCategoryArray
-            return { projects, currentProjectId, projectMeta, members, expenses, showModal, showSettlement, isEditing, form, isValid, totalExpense, memberStats, settlement, isLocked, pin, pinContext, showPassSettings, newProjectTitle, showToast, isRefreshing, editingProjectId, editingProjectName, editingProjectDate, formatDate, getPayerDisplay, getSplitCount, fetchProjects, createProject, enterProject, loadData, manualRefresh, startEditProject, saveProjectName, deleteProject, addMember, updateMember, deleteMember, openAddExpense, openEditExpense, toggleMemberPay, toggleMemberSplit, toggleAllSplit, submitExpense, deleteExpense, pressPin, handlePinComplete, backToHome, closePinPad, triggerPassSetup, copyLink, payManualDiff, splitManualDiff, invalidExpenseIds, handleSettlementClick, categoryStats, sortedCategoryArray };
+            return { projects, currentProjectId, projectMeta, members, expenses, showModal, showSettlement, isEditing, form, isValid, totalExpense, memberStats, settlement, isLocked, pin, pinContext, showPassSettings, newProjectTitle, showToast, isRefreshing, editingProjectId, editingProjectName, editingProjectDate, formatDate, getPayerDisplay, getSplitCount, fetchProjects, createProject, enterProject, loadData, manualRefresh, startEditProject, saveProjectName, deleteProject, addMember, updateMember, deleteMember, openAddExpense, openEditExpense, toggleMemberPay, toggleMemberSplit, toggleAllSplit, submitExpense, deleteExpense, pressPin, handlePinComplete, backToHome, closePinPad, triggerPassSetup, copyLink, payManualDiff, splitManualDiff, invalidExpenseIds, handleSettlementClick, categoryStats };
         }
     }).mount('#app');
 </script>
