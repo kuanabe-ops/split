@@ -320,7 +320,7 @@
                     .map((item)=>({
                         ...item,
                         percent: ((item.value/total)*100).toFixed(1),
-                        color: colorMap[item.label] || '#8E9399'
+                        color: palette[item.label] || '#8E9399'
                     }));
             });
 
