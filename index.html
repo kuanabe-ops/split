@@ -39,7 +39,6 @@
         
         .chart-container {
             position: relative;
-            filter: drop-shadow(0 0 15px rgba(142, 155, 176, 0.12));
         }
     </style>
 </head>
@@ -210,7 +209,7 @@
         <div class="mt-20 pb-12 flex flex-col items-center">
             <h2 class="text-3xl f-light text-white mb-12 w-full">分類統計</h2>
             
-            <div class="chart-container w-56 h-56 mb-12">
+            <div class="chart-container w-48 h-48 mb-12">
                 <canvas id="categoryChart"></canvas>
             </div>
 
@@ -234,14 +233,14 @@
     const client = supabase.createClient(SB_URL, SB_KEY);
     const { createApp, ref, computed, onMounted, nextTick, watch } = Vue;
 
-    // 鐵灰藍至霧灰藍漸層 (由深至淺)
+    // 莫蘭迪霧感色調 (高辨識度、低飽和)
     const palette = [
-        ['#1C2430', '#2E3A4F'], // 深鐵灰藍
-        ['#233142', '#3D4F66'],
-        ['#2B313A', '#505A66'],
-        ['#3B4759', '#6B7A8F'],
-        ['#5E6C84', '#8E9BB0'],
-        ['#7F91A5', '#B4C2D6']  // 霧灰藍
+        '#8E9775', // 霧艾草綠
+        '#A7C4BC', // 霧薄荷
+        '#E28E8E', // 霧茶粉
+        '#9AB3D5', // 霧丹寧
+        '#C2B092', // 霧亞麻
+        '#D0B8A8'  // 霧陶土
     ];
 
     createApp({
@@ -279,7 +278,6 @@
                 return res;
             });
 
-            // 分類統計並排序
             const sortedStats = computed(() => {
                 let map = {};
                 expenses.value.forEach(e => {
@@ -288,15 +286,14 @@
                 });
                 return Object.entries(map)
                     .map(([cat, val]) => ({ cat, val }))
-                    .sort((a, b) => b.val - a.val); // 由大到小排序
+                    .sort((a, b) => b.val - a.val);
             });
 
-            const getPaletteColor = (i) => palette[i % palette.length][1];
+            const getPaletteColor = (i) => palette[i % palette.length];
 
             let chartInstance = null;
             watch(showSettlement, (val) => {
                 if (!val) return;
-
                 nextTick(() => {
                     const canvas = document.getElementById('categoryChart');
                     if (!canvas) return;
@@ -307,31 +304,21 @@
                     const values = sortedStats.value.map(i => i.val);
                     const total = totalExpense.value;
 
-                    const gradients = labels.map((_, i) => {
-                        const g = ctx.createLinearGradient(0, 0, 0, 200);
-                        const pair = palette[i % palette.length];
-                        g.addColorStop(0, pair[0]);
-                        g.addColorStop(1, pair[1]);
-                        return g;
-                    });
-
                     chartInstance = new Chart(ctx, {
                         type: 'doughnut',
                         data: {
                             labels,
                             datasets: [{
                                 data: values,
-                                backgroundColor: gradients,
-                                borderWidth: 2,
-                                borderColor: '#161A22',
-                                hoverOffset: 6
+                                backgroundColor: palette.slice(0, labels.length),
+                                borderWidth: 0,
+                                hoverOffset: 10
                             }]
                         },
                         options: {
-                            cutout: '60%', // 加厚
+                            cutout: '75%',
                             responsive: true,
                             maintainAspectRatio: false,
-                            animation: { animateRotate: true, duration: 1000 },
                             plugins: {
                                 legend: { display: false },
                                 tooltip: { enabled: false }
@@ -345,11 +332,11 @@
                                 ctx.fillStyle = '#F5F7FA';
                                 ctx.textAlign = 'center';
                                 ctx.textBaseline = 'middle';
-                                ctx.font = "12px 'Noto Sans TC'";
+                                ctx.font = "11px 'Noto Sans TC'";
                                 ctx.globalAlpha = 0.4;
-                                ctx.fillText('TOTAL', chart.width / 2, chart.height / 2 - 12);
+                                ctx.fillText('TOTAL', chart.width / 2, chart.height / 2 - 10);
                                 ctx.globalAlpha = 1.0;
-                                ctx.font = "bold 20px 'Noto Sans TC'";
+                                ctx.font = "bold 18px 'Noto Sans TC'";
                                 ctx.fillText(`$${Math.round(total).toLocaleString()}`, chart.width / 2, chart.height / 2 + 12);
                                 ctx.restore();
                             }
