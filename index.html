@@ -148,8 +148,8 @@
                 <input v-model="form.title" type="text" placeholder="消費項目" class="w-full bg-transparent border-b border-white/10 py-3 text-lg text-white outline-none">
                 
                 <div class="flex gap-3 items-end border-b border-white/10 pb-3">
-                    <input v-model.number="form.amount" type="number" placeholder="金額" class="flex-1 bg-transparent text-lg text-white outline-none">
-                    <select v-model="form.category" class="bg-white/5 border border-white/10 text-blue-300 text-sm px-3 py-2 rounded-xl outline-none">
+                    <input v-model.number="form.amount" type="number" placeholder="金額" class="w-28 bg-transparent text-lg text-white outline-none">
+                    <select v-model="form.category" class="flex-1 min-w-0 bg-white/5 border border-white/10 text-blue-300 text-sm px-3 py-2 rounded-xl outline-none">
                         <option value="" class="bg-[#161A22]">未分類</option>
                         <option value="飲食" class="bg-[#161A22]">飲食</option>
                         <option value="住宿" class="bg-[#161A22]">住宿</option>
@@ -202,10 +202,8 @@
             <p v-if="settlement.transfers.length === 0" class="text-center text-blue-300 py-10">目前無須轉帳</p>
         </div>
 
-        <div class="mt-16 pb-12">
-            <h3 class="text-sm text-blue-300 tracking-[0.3em] uppercase f-medium mb-6 text-center">
-                分類統計
-            </h3>
+        <div class="mt-20 pb-12">
+            <h2 class="text-3xl f-light text-white mb-12">分類統計</h2>
             <canvas id="categoryChart"></canvas>
         </div>
     </div>
@@ -225,9 +223,7 @@
             const adminPass = ref(null); const isLocked = ref(false); const showPassSettings = ref(false); const pin = ref('');
             const newProjectTitle = ref(''); const showToast = ref(false); const isRefreshing = ref(false);
             
-            // 更新：表單新增 category
             const form = ref({ title: '', amount: '', date: '', category: '', pMode: 'equal', pList: [], manualP: {}, sMode: 'equal', sList: [], manualS: {} });
-            
             const invalidExpenseIds = ref([]);
 
             const refreshIcons = () => nextTick(() => { if(window.lucide) lucide.createIcons(); });
@@ -254,7 +250,6 @@
                 return res;
             });
 
-            // 新增：圓餅圖的分類統計資料
             const categoryStats = computed(() => {
                 let map = {};
                 expenses.value.forEach(e => {
@@ -264,47 +259,112 @@
                 return map;
             });
 
-            // 新增：監聽結算視窗開啟以繪製 Chart.js
+            // 更新：超高質感漸層甜甜圈圖 + 標籤繪製
             let chartInstance = null;
             watch(showSettlement, (val) => {
                 if (!val) return;
+
                 nextTick(() => {
-                    const ctx = document.getElementById('categoryChart');
-                    if (!ctx) return;
-                    
-                    if (chartInstance) {
-                        chartInstance.destroy(); // 避免重疊繪製
-                    }
+                    const canvas = document.getElementById('categoryChart');
+                    if (!canvas) return;
+
+                    const ctx = canvas.getContext('2d');
+
+                    if (chartInstance) chartInstance.destroy();
+
+                    const labels = Object.keys(categoryStats.value);
+                    const values = Object.values(categoryStats.value);
+                    const total = values.reduce((a,b)=>a+b,0);
+
+                    // 建立漸層色
+                    const gradients = labels.map((_, i) => {
+                        const g = ctx.createLinearGradient(0, 0, 0, 300);
+                        const palette = [
+                            ['#60A5FA', '#1D4ED8'],
+                            ['#34D399', '#059669'],
+                            ['#FBBF24', '#D97706'],
+                            ['#F87171', '#DC2626'],
+                            ['#A78BFA', '#7C3AED'],
+                            ['#94A3B8', '#475569']
+                        ];
+                        const pair = palette[i % palette.length];
+                        g.addColorStop(0, pair[0]);
+                        g.addColorStop(1, pair[1]);
+                        return g;
+                    });
 
                     chartInstance = new Chart(ctx, {
-                        type: 'pie',
+                        type: 'doughnut',
                         data: {
-                            labels: Object.keys(categoryStats.value),
+                            labels,
                             datasets: [{
-                                data: Object.values(categoryStats.value),
-                                backgroundColor: [
-                                    '#60A5FA', // Blue
-                                    '#34D399', // Emerald
-                                    '#FBBF24', // Amber
-                                    '#F87171', // Red
-                                    '#A78BFA', // Violet
-                                    '#94A3B8'  // Slate (未分類)
-                                ],
-                                borderWidth: 0
+                                data: values,
+                                backgroundColor: gradients,
+                                borderWidth: 0,
+                                hoverOffset: 8
                             }]
                         },
                         options: {
+                            cutout: '65%',
+                            animation: {
+                                animateRotate: true,
+                                duration: 900
+                            },
                             plugins: {
-                                legend: {
-                                    labels: { color: '#F5F7FA', font: { family: "'Noto Sans TC', sans-serif" } }
-                                }
+                                legend: { display: false },
+                                tooltip: { enabled: false }
                             }
-                        }
+                        },
+                        plugins: [{
+                            id: 'customLabels',
+                            afterDraw(chart) {
+                                const { ctx } = chart;
+                                const meta = chart.getDatasetMeta(0);
+
+                                meta.data.forEach((arc, i) => {
+                                    const val = values[i];
+                                    const percent = ((val / total) * 100).toFixed(0);
+
+                                    const pos = arc.tooltipPosition();
+
+                                    ctx.save();
+                                    ctx.fillStyle = '#F5F7FA';
+                                    ctx.font = "12px 'Noto Sans TC'";
+                                    ctx.textAlign = 'center';
+
+                                    ctx.fillText(labels[i], pos.x, pos.y - 8);
+                                    ctx.font = "bold 13px 'Noto Sans TC'";
+                                    ctx.fillText(`${percent}%`, pos.x, pos.y + 6);
+                                    ctx.font = "11px 'Noto Sans TC'";
+                                    ctx.fillText(`$${Math.round(val)}`, pos.x, pos.y + 22);
+
+                                    ctx.restore();
+                                });
+
+                                // 中央總金額
+                                ctx.save();
+                                ctx.fillStyle = '#F5F7FA';
+                                ctx.font = "14px 'Noto Sans TC'";
+                                ctx.textAlign = 'center';
+                                ctx.fillText('總支出', chart.width / 2, chart.height / 2 - 8);
+
+                                ctx.font = "bold 20px 'Noto Sans TC'";
+                                ctx.fillText(`$${Math.round(total)}`, chart.width / 2, chart.height / 2 + 18);
+                                ctx.restore();
+                            }
+                        }]
                     });
                 });
             });
 
-            async function fetchProjects() { const { data } = await client.from('projects').select('*').order('created_at'); projects.value = data || []; }
+            // 更新：依建立日期倒序排列（最新在最上面）
+            async function fetchProjects() { 
+                const { data } = await client
+                    .from('projects')
+                    .select('*')
+                    .order('created_at', { ascending: false }); 
+                projects.value = data || [];
+            }
             async function enterProject(id) { currentProjectId.value = id; window.history.pushState({}, '', `?pid=${id}`); await loadData(); }
             async function loadData() {
                 const { data: p } = await client.from('projects').select('*').eq('id', currentProjectId.value).single(); projectMeta.value = p || {};
@@ -382,7 +442,6 @@
                 showSettlement.value = true;
             }
 
-            // 更新：初始化新增 category
             function openAddExpense() {
                 isEditing.value = false;
                 form.value = { title: '', amount: '', date: new Date().toISOString().split('T')[0], category: '', pMode: 'equal', pList: members.value.length > 0 ? [members.value[0].id] : [], manualP: {}, sMode: 'equal', sList: members.value.map(m=>m.id), manualS: {} };
@@ -390,7 +449,6 @@
                 showModal.value = true;
             }
 
-            // 更新：編輯時寫入 category
             function openEditExpense(e) {
                 isEditing.value = true; editingExpenseId.value = e.id;
                 const activePayers = Object.keys(e.payers).filter(id => Number(e.payers[id]) > 0.01).map(Number);
@@ -415,7 +473,6 @@
             const splitManualDiff = computed(() => Number(form.value.amount) - Object.values(form.value.manualS).reduce((a,b)=>a+(Number(b)||0), 0));
             const isValid = computed(() => form.value.title && Number(form.value.amount) > 0 && (form.value.pMode === 'manual' ? Math.abs(payManualDiff.value) < 1 : form.value.pList.length > 0) && (form.value.sMode === 'manual' ? Math.abs(splitManualDiff.value) < 1 : form.value.sList.length > 0));
 
-            // 更新：送出時寫入 category
             async function submitExpense() {
                 let p = {}, s = {}; const totalCents = Math.round(form.value.amount * 100);
                 if (form.value.pMode === 'equal') { const avg = Math.floor(totalCents / form.value.pList.length); form.value.pList.forEach(id => p[id] = avg / 100); p[form.value.pList[0]] = (avg + (totalCents % form.value.pList.length)) / 100; } else p = form.value.manualP;
