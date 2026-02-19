@@ -103,7 +103,7 @@
 
         <main class="flex-1 overflow-y-auto pt-2 pb-36 px-1">
             <div class="mb-10 w-full flex flex-col items-center">
-                <h3 class="text-sm text-blue-300 tracking-[0.3em] uppercase f-medium mb-6 w-full text-center">
+                <h3 class="w-full text-center text-sm text-blue-300 tracking-[0.3em] uppercase f-medium mb-6">
                     個人支出
                 </h3>
                 <div class="space-y-3 w-full max-w-[240px] bg-white/5 p-5 rounded-[24px] border border-white/10">
@@ -204,13 +204,42 @@
             <p v-if="settlement.transfers.length === 0" class="text-center text-blue-300 py-10">目前無須轉帳</p>
         </div>
 
-        <div class="mt-20 pb-12 flex flex-col items-center">
-            <h2 class="text-3xl f-light text-white mb-12 w-full text-left">分類統計</h2>
-            <div class="w-full relative px-4 flex justify-center">
-                <div class="w-[60%]">
+        <div class="mt-20 pb-16 flex flex-col items-center">
+
+            <h2 class="text-3xl f-light text-white mb-10 w-full text-center">
+                分類統計
+            </h2>
+
+            <div class="w-full flex justify-center mb-10">
+                <div class="relative" style="width:60%;">
                     <canvas id="categoryChart"></canvas>
                 </div>
             </div>
+
+            <div class="w-full max-w-[320px] space-y-3">
+                <div v-for="item in sortedCategoryList" 
+                    class="flex justify-between items-center px-4 py-3 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md">
+                    
+                    <div class="flex items-center gap-3">
+                        <div :style="{background:item.color}" 
+                            class="w-3 h-3 rounded-full shadow-md">
+                        </div>
+                        <span class="text-sm text-white f-medium tracking-wide">
+                            {{ item.label }}
+                        </span>
+                    </div>
+
+                    <div class="text-right">
+                        <div class="text-sm text-white f-medium">
+                            ${{ item.value.toLocaleString() }}
+                        </div>
+                        <div class="text-xs text-blue-300 tracking-wider">
+                            {{ item.percent }}%
+                        </div>
+                    </div>
+                </div>
+            </div>
+
         </div>
     </div>
 </div>
@@ -265,44 +294,60 @@
                 return map;
             });
 
-            // ===== 圓餅圖重寫版本（依金額排序 + 60%尺寸 + 霧感色 + 下方圖例）=====
+            const sortedCategoryList = computed(() => {
+
+                const entries = Object.entries(categoryStats.value);
+
+                if (!entries.length) return [];
+
+                const total = entries.reduce((a,b)=>a+Number(b[1]),0);
+
+                const palette = [
+                    '#7C8EA3',
+                    '#8FA7A0',
+                    '#9DA4B0',
+                    '#A7B0A3',
+                    '#8C9BA8',
+                    '#9BA39A'
+                ];
+
+                return entries
+                    .map(([label,value]) => ({
+                        label,
+                        value,
+                    }))
+                    .sort((a,b)=>b.value - a.value)
+                    .map((item,index)=>({
+                        ...item,
+                        percent: ((item.value/total)*100).toFixed(1),
+                        color: palette[index % palette.length]
+                    }));
+            });
+
             let chartInstance = null;
 
             watch(showSettlement, (val) => {
+
                 if (!val) return;
 
                 nextTick(() => {
+
                     const canvas = document.getElementById('categoryChart');
                     if (!canvas) return;
 
                     const ctx = canvas.getContext('2d');
+
                     if (chartInstance) chartInstance.destroy();
 
-                    // 1️⃣ 依金額由大到小排序
-                    const sorted = Object.entries(categoryStats.value)
-                        .sort((a,b)=> b[1] - a[1]);
+                    const dataList = sortedCategoryList.value;
 
-                    const labels = sorted.map(i=>i[0]);
-                    const values = sorted.map(i=>i[1]);
+                    if (!dataList.length) return;
+
+                    const labels = dataList.map(i => i.label);
+                    const values = dataList.map(i => i.value);
+                    const colors = dataList.map(i => i.color);
+
                     const total = values.reduce((a,b)=>a+b,0);
-
-                    // 2️⃣ 低飽和霧面玻璃色盤
-                    const palette = [
-                        ['#7C8CA3','#4E5D73'],
-                        ['#6F9A8D','#3F5F57'],
-                        ['#9A86A4','#5C4A6E'],
-                        ['#8F9DAA','#56616B'],
-                        ['#A88E78','#6B5A4E'],
-                        ['#7E8FA6','#465569']
-                    ];
-
-                    const gradients = labels.map((_, i) => {
-                        const g = ctx.createLinearGradient(0, 0, 0, 300);
-                        const pair = palette[i % palette.length];
-                        g.addColorStop(0, pair[0]);
-                        g.addColorStop(1, pair[1]);
-                        return g;
-                    });
 
                     chartInstance = new Chart(ctx, {
                         type: 'doughnut',
@@ -310,66 +355,50 @@
                             labels,
                             datasets: [{
                                 data: values,
-                                backgroundColor: gradients,
+                                backgroundColor: colors,
                                 borderWidth: 0,
                                 hoverOffset: 6
                             }]
                         },
                         options: {
                             responsive: true,
-                            cutout: '65%', // 正常厚度
-                            layout: { padding: 0 },
+                            cutout: '38%',   // 加厚
                             plugins: {
-                                legend: { display: false },
-                                tooltip: { enabled: false }
+                                legend: { display:false },
+                                tooltip: { enabled:false }
                             }
                         },
                         plugins: [{
                             id: 'centerText',
                             afterDraw(chart) {
+
                                 const { ctx } = chart;
+
                                 ctx.save();
                                 ctx.fillStyle = '#F5F7FA';
                                 ctx.textAlign = 'center';
-                                ctx.font = "13px 'Noto Sans TC'";
-                                ctx.fillText('總支出', chart.width/2, chart.height/2 - 10);
+
+                                ctx.font = "12px 'Noto Sans TC'";
+                                ctx.fillText(
+                                    '總金額',
+                                    chart.width/2,
+                                    chart.height/2 - 12
+                                );
+
                                 ctx.font = "bold 20px 'Noto Sans TC'";
-                                ctx.fillText(`$${Math.round(total).toLocaleString()}`, chart.width/2, chart.height/2 + 16);
+                                ctx.fillText(
+                                    `$${Math.round(total).toLocaleString()}`,
+                                    chart.width/2,
+                                    chart.height/2 + 18
+                                );
+
                                 ctx.restore();
                             }
                         }]
                     });
 
-                    // 3️⃣ 建立下方圖例
-                    const legendContainer = document.getElementById('chartLegend');
-                    if (legendContainer) legendContainer.remove();
-
-                    const legend = document.createElement('div');
-                    legend.id = 'chartLegend';
-                    legend.className = "mt-10 space-y-3 w-full"; // 確保圖例寬度正確
-
-                    labels.forEach((label, i) => {
-                        const percent = ((values[i]/total)*100).toFixed(1);
-                        const row = document.createElement('div');
-                        row.className = "flex justify-between items-center text-sm";
-
-                        row.innerHTML = `
-                            <div class="flex items-center gap-3">
-                                <div style="width:12px;height:12px;border-radius:50%;background:${palette[i % palette.length][0]}"></div>
-                                <span class="text-blue-300 f-medium">${label}</span>
-                            </div>
-                            <div class="text-right">
-                                <span class="text-white f-medium">$${Math.round(values[i]).toLocaleString()}</span>
-                                <span class="text-gray-400 ml-2">${percent}%</span>
-                            </div>
-                        `;
-
-                        legend.appendChild(row);
-                    });
-
-                    // 將圖例掛在 60% 寬度容器之外，確保滿版寬度
-                    canvas.closest('.w-full').appendChild(legend);
                 });
+
             });
 
             async function fetchProjects() { 
@@ -524,7 +553,7 @@
             function toggleAllSplit() { if (form.value.sList.length === members.value.length) form.value.sList = []; else form.value.sList = members.value.map(m => m.id); }
             function copyLink() { navigator.clipboard.writeText(window.location.href); showToast.value = true; setTimeout(() => showToast.value = false, 2000); }
 
-            return { projects, currentProjectId, projectMeta, members, expenses, showModal, showSettlement, isEditing, form, isValid, totalExpense, memberStats, settlement, isLocked, pin, pinContext, showPassSettings, newProjectTitle, showToast, isRefreshing, editingProjectId, editingProjectName, editingProjectDate, formatDate, getPayerDisplay, getSplitCount, fetchProjects, createProject, enterProject, loadData, manualRefresh, startEditProject, saveProjectName, deleteProject, addMember, updateMember, deleteMember, openAddExpense, openEditExpense, toggleMemberPay, toggleMemberSplit, toggleAllSplit, submitExpense, deleteExpense, pressPin, handlePinComplete, backToHome, closePinPad, triggerPassSetup, copyLink, payManualDiff, splitManualDiff, invalidExpenseIds, handleSettlementClick, categoryStats };
+            return { projects, currentProjectId, projectMeta, members, expenses, showModal, showSettlement, isEditing, form, isValid, totalExpense, memberStats, settlement, isLocked, pin, pinContext, showPassSettings, newProjectTitle, showToast, isRefreshing, editingProjectId, editingProjectName, editingProjectDate, formatDate, getPayerDisplay, getSplitCount, fetchProjects, createProject, enterProject, loadData, manualRefresh, startEditProject, saveProjectName, deleteProject, addMember, updateMember, deleteMember, openAddExpense, openEditExpense, toggleMemberPay, toggleMemberSplit, toggleAllSplit, submitExpense, deleteExpense, pressPin, handlePinComplete, backToHome, closePinPad, triggerPassSetup, copyLink, payManualDiff, splitManualDiff, invalidExpenseIds, handleSettlementClick, categoryStats, sortedCategoryList };
         }
     }).mount('#app');
 </script>
