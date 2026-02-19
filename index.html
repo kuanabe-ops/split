@@ -37,7 +37,9 @@
         .rotate-anim { animation: rotate 0.5s ease-in-out; }
         @keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         
+        /* 圓餅圖淡淡的光圈效果 */
         .chart-container {
+            filter: drop-shadow(0 0 12px rgba(255, 255, 255, 0.08));
             position: relative;
         }
     </style>
@@ -105,13 +107,16 @@
             {{ formatDate(projectMeta.created_at) }}
         </div>
 
-        <main class="flex-1 overflow-y-auto pt-2 pb-36 px-1">
-            <div class="mb-10 text-center flex flex-col items-center">
-                <h3 class="text-sm text-blue-300 tracking-[0.3em] uppercase f-medium mb-6 w-full">個人支出</h3>
-                <div class="space-y-3 w-full max-w-[280px] bg-white/5 p-5 rounded-[24px] border border-white/10">
-                    <div v-for="m in members" :key="m.id" class="flex justify-between text-sm"><span class="f-medium text-blue-300">{{m.name}}</span><span class="f-medium text-white">${{ (memberStats[m.id] || 0).toLocaleString() }}</span></div>
+        <main class="flex-1 overflow-y-auto pt-2 pb-36">
+            <div class="mb-10 text-center w-full px-2">
+                <h3 class="text-sm text-blue-300 tracking-[0.3em] uppercase f-medium mb-6">個人支出</h3>
+                <div class="space-y-3 max-w-[260px] mx-auto bg-white/5 p-6 rounded-[28px] border border-white/10 shadow-xl">
+                    <div v-for="m in members" :key="m.id" class="flex justify-between items-center text-sm">
+                        <span class="f-medium text-blue-300">{{m.name}}</span>
+                        <span class="f-medium text-white">${{ (memberStats[m.id] || 0).toLocaleString() }}</span>
+                    </div>
                 </div>
-                <div class="mt-6 text-sm text-blue-300 f-medium tracking-wider w-full">總支出 ${{ totalExpense.toLocaleString() }}</div>
+                <div class="mt-6 text-center text-sm text-blue-300 f-medium tracking-wider">總支出 ${{ totalExpense.toLocaleString() }}</div>
                 <button @click="handleSettlementClick" class="mt-10 bg-white text-black px-10 py-3 rounded-full text-sm f-medium tracking-wider shadow-lg active:scale-95 transition-all">查看結算</button>
             </div>
             
@@ -142,6 +147,39 @@
                 </div>
             </section>
         </main>
+    </div>
+
+    <div v-if="showSettlement" class="fixed inset-0 bg-[#0F1115] z-[300] flex flex-col p-8 overflow-y-auto animate-in fade-in">
+        <div class="flex justify-between items-center mb-16"><h2 class="text-3xl f-light text-white">建議轉帳</h2><button @click="showSettlement=false" class="p-3 bg-white/5 rounded-2xl text-gray-500"><i data-lucide="x" class="w-5 h-5"></i></button></div>
+        
+        <div class="space-y-6">
+            <div v-for="t in settlement.transfers" class="flex justify-between items-center p-6 rounded-[24px] bg-white/5 border border-white/10 backdrop-blur-md">
+                <div class="flex flex-col gap-1"><span class="text-[14px] text-blue-300 uppercase tracking-widest">由 {{t.from}}</span><span class="text-sm f-medium text-white">給 {{t.to}}</span></div>
+                <span class="f-medium text-2xl text-white">${{Math.round(t.amount)}}</span>
+            </div>
+            <p v-if="settlement.transfers.length === 0" class="text-center text-blue-300 py-10">目前無須轉帳</p>
+        </div>
+
+        <div class="mt-20 pb-20 flex flex-col items-center">
+            <h2 class="text-2xl f-light text-white mb-10 w-full text-left">分類統計</h2>
+            
+            <div class="chart-container w-[220px] h-[220px] mb-12">
+                <canvas id="categoryChart"></canvas>
+            </div>
+
+            <div class="w-full space-y-4">
+                <div v-for="item in sortedCategoryList" :key="item.label" class="flex justify-between items-center px-4 py-3 bg-white/5 rounded-2xl border border-white/5">
+                    <div class="flex items-center gap-3">
+                        <div class="w-3 h-3 rounded-full" :style="{ backgroundColor: item.color }"></div>
+                        <span class="text-sm text-white/80 f-medium">{{ item.label }}</span>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-sm text-white f-medium">${{ Math.round(item.value).toLocaleString() }}</div>
+                        <div class="text-[10px] text-gray-500 uppercase tracking-tighter">{{ item.percent }}%</div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <div v-if="showModal" class="fixed inset-0 bg-black/60 backdrop-blur-md z-[200] flex items-end justify-center">
@@ -195,36 +233,6 @@
             </div>
         </div>
     </div>
-
-    <div v-if="showSettlement" class="fixed inset-0 bg-[#0F1115] z-[300] flex flex-col p-8 overflow-y-auto animate-in fade-in">
-        <div class="flex justify-between items-center mb-16"><h2 class="text-3xl f-light text-white">建議轉帳路徑</h2><button @click="showSettlement=false" class="p-3 bg-white/5 rounded-2xl text-gray-500"><i data-lucide="x" class="w-5 h-5"></i></button></div>
-        <div class="space-y-6">
-            <div v-for="t in settlement.transfers" class="flex justify-between items-center p-6 rounded-[24px] bg-white/5 border border-white/10 backdrop-blur-md">
-                <div class="flex flex-col gap-1"><span class="text-[14px] text-blue-300 uppercase tracking-widest">由 {{t.from}}</span><span class="text-sm f-medium text-white">給 {{t.to}}</span></div>
-                <span class="f-medium text-2xl text-white">${{Math.round(t.amount)}}</span>
-            </div>
-            <p v-if="settlement.transfers.length === 0" class="text-center text-blue-300 py-10">目前無須轉帳</p>
-        </div>
-
-        <div class="mt-20 pb-12 flex flex-col items-center">
-            <h2 class="text-3xl f-light text-white mb-12 w-full">分類統計</h2>
-            
-            <div class="chart-container w-48 h-48 mb-12">
-                <canvas id="categoryChart"></canvas>
-            </div>
-
-            <div class="w-full space-y-3">
-                <div v-for="(item, index) in sortedStats" :key="item.cat" class="flex justify-between items-center p-4 bg-white/5 rounded-2xl border border-white/5">
-                    <div class="flex items-center gap-3">
-                        <div class="w-2.5 h-2.5 rounded-full" :style="{ backgroundColor: getPaletteColor(index) }"></div>
-                        <span class="text-sm text-white f-medium">{{ item.cat }}</span>
-                        <span class="text-[10px] text-gray-500">{{ ((item.val / totalExpense) * 100).toFixed(0) }}%</span>
-                    </div>
-                    <span class="text-sm text-blue-300 f-medium">${{ Math.round(item.val).toLocaleString() }}</span>
-                </div>
-            </div>
-        </div>
-    </div>
 </div>
 
 <script>
@@ -232,16 +240,6 @@
     const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt3cmVmbm1oanV3bnZmaXB4ZHlxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEyOTQ4NTksImV4cCI6MjA4Njg3MDg1OX0.jthw2efO6SSzIm0PpY0scQ9cBrAtByEzxxrzz1YOHlc';
     const client = supabase.createClient(SB_URL, SB_KEY);
     const { createApp, ref, computed, onMounted, nextTick, watch } = Vue;
-
-    // 莫蘭迪霧感色調 (高辨識度、低飽和)
-    const palette = [
-        '#8E9775', // 霧艾草綠
-        '#A7C4BC', // 霧薄荷
-        '#E28E8E', // 霧茶粉
-        '#9AB3D5', // 霧丹寧
-        '#C2B092', // 霧亞麻
-        '#D0B8A8'  // 霧陶土
-    ];
 
     createApp({
         setup() {
@@ -253,6 +251,7 @@
             
             const form = ref({ title: '', amount: '', date: '', category: '', pMode: 'equal', pList: [], manualP: {}, sMode: 'equal', sList: [], manualS: {} });
             const invalidExpenseIds = ref([]);
+            const sortedCategoryList = ref([]); // 供下方列表使用
 
             const refreshIcons = () => nextTick(() => { if(window.lucide) lucide.createIcons(); });
             onMounted(async () => {
@@ -278,31 +277,53 @@
                 return res;
             });
 
-            const sortedStats = computed(() => {
+            const categoryStats = computed(() => {
                 let map = {};
                 expenses.value.forEach(e => {
                     const cat = e.category || '未分類';
                     map[cat] = (map[cat] || 0) + Number(e.amount);
                 });
-                return Object.entries(map)
-                    .map(([cat, val]) => ({ cat, val }))
-                    .sort((a, b) => b.val - a.val);
+                return map;
             });
 
-            const getPaletteColor = (i) => palette[i % palette.length];
-
+            // 圖表實例
             let chartInstance = null;
+            
+            // 低飽和霧感色調調色盤
+            const fogPalette = [
+                '#A8B5A2', // 霧感豆沙綠
+                '#C9A9A9', // 煙燻粉
+                '#9BA9B3', // 霧霾藍
+                '#D1C4A3', // 麥稈黃
+                '#B4A7B5', // 丁香紫
+                '#A3B8B8', // 莫蘭迪青
+                '#C2B5A8'  // 奶茶棕
+            ];
+
             watch(showSettlement, (val) => {
                 if (!val) return;
+
                 nextTick(() => {
                     const canvas = document.getElementById('categoryChart');
                     if (!canvas) return;
                     const ctx = canvas.getContext('2d');
                     if (chartInstance) chartInstance.destroy();
 
-                    const labels = sortedStats.value.map(i => i.cat);
-                    const values = sortedStats.value.map(i => i.val);
-                    const total = totalExpense.value;
+                    // 1. 金額從多到少排序
+                    const sortedData = Object.entries(categoryStats.value)
+                        .sort(([, a], [, b]) => b - a);
+
+                    const labels = sortedData.map(x => x[0]);
+                    const values = sortedData.map(x => x[1]);
+                    const total = values.reduce((a, b) => a + b, 0);
+
+                    // 更新外部列表數據
+                    sortedCategoryList.value = labels.map((label, i) => ({
+                        label,
+                        value: values[i],
+                        percent: ((values[i] / total) * 100).toFixed(0),
+                        color: fogPalette[i % fogPalette.length]
+                    }));
 
                     chartInstance = new Chart(ctx, {
                         type: 'doughnut',
@@ -310,34 +331,39 @@
                             labels,
                             datasets: [{
                                 data: values,
-                                backgroundColor: palette.slice(0, labels.length),
+                                backgroundColor: fogPalette,
                                 borderWidth: 0,
-                                hoverOffset: 10
+                                hoverOffset: 4
                             }]
                         },
                         options: {
-                            cutout: '75%',
+                            cutout: '82%', // 稍微縮小並加厚 (從 65% 改為 82%)
                             responsive: true,
                             maintainAspectRatio: false,
+                            animation: { animateRotate: true, duration: 1000 },
                             plugins: {
-                                legend: { display: false },
-                                tooltip: { enabled: false }
+                                legend: { display: false }, // 移除預設圖例
+                                tooltip: { 
+                                    enabled: true,
+                                    backgroundColor: 'rgba(22, 26, 34, 0.8)',
+                                    padding: 12,
+                                    bodyFont: { size: 13 }
+                                }
                             }
                         },
                         plugins: [{
                             id: 'centerText',
                             afterDraw(chart) {
                                 const { ctx } = chart;
+                                // 中央總金額 (保留)
                                 ctx.save();
                                 ctx.fillStyle = '#F5F7FA';
+                                ctx.font = "300 13px 'Noto Sans TC'";
                                 ctx.textAlign = 'center';
-                                ctx.textBaseline = 'middle';
-                                ctx.font = "11px 'Noto Sans TC'";
-                                ctx.globalAlpha = 0.4;
-                                ctx.fillText('TOTAL', chart.width / 2, chart.height / 2 - 10);
-                                ctx.globalAlpha = 1.0;
-                                ctx.font = "bold 18px 'Noto Sans TC'";
-                                ctx.fillText(`$${Math.round(total).toLocaleString()}`, chart.width / 2, chart.height / 2 + 12);
+                                ctx.fillText('總支出', chart.width / 2, chart.height / 2 - 10);
+
+                                ctx.font = "500 18px 'Noto Sans TC'";
+                                ctx.fillText(`$${Math.round(total).toLocaleString()}`, chart.width / 2, chart.height / 2 + 15);
                                 ctx.restore();
                             }
                         }]
@@ -357,23 +383,115 @@
                 validateBeforeSettlement();
             }
             async function manualRefresh() { isRefreshing.value = true; await loadData(); setTimeout(() => isRefreshing.value = false, 500); }
+
             async function createProject() { if (!newProjectTitle.value.trim()) return; const { data } = await client.from('projects').insert({ name: newProjectTitle.value }).select().single(); enterProject(data.id); }
             function startEditProject(p) { editingProjectId.value = p.id; editingProjectName.value = p.name; editingProjectDate.value = formatDate(p.created_at); }
             async function saveProjectName(id) { await client.from('projects').update({ name: editingProjectName.value, created_at: editingProjectDate.value }).eq('id', id); editingProjectId.value = null; fetchProjects(); }
             async function deleteProject(id) { if (confirm('確定刪除？')) { await client.from('projects').delete().eq('id', id); fetchProjects(); } }
-            async function addMember() { const existNum = members.value.map(m => { const res = m.name.match(/^成員(\d+)$/); return res ? Number(res[1]) : null; }).filter(n => n !== null); let i = 1; while (existNum.includes(i)) i++; await client.from('members').insert({ project_id: currentProjectId.value, name: `成員${i}` }); await loadData(); }
+
+            async function addMember() {
+                const existNum = members.value.map(m => { const res = m.name.match(/^成員(\d+)$/); return res ? Number(res[1]) : null; }).filter(n => n !== null);
+                let i = 1; while (existNum.includes(i)) i++;
+                await client.from('members').insert({ project_id: currentProjectId.value, name: `成員${i}` }); await loadData();
+            }
             async function updateMember(m) { await client.from('members').update({name: m.name}).eq('id', m.id); }
-            async function deleteMember(id) { if (confirm('確定刪除成員？')) { await client.from('members').delete().eq('id', id); await loadData(); } }
-            function validateBeforeSettlement() { invalidExpenseIds.value = []; expenses.value.forEach(exp => { const total = Math.round(Number(exp.amount) * 100); const paySum = Object.values(exp.payers || {}).reduce((a,b)=> a + Math.round(Number(b)*100), 0); const splitSum = Object.values(exp.split_details || {}).reduce((a,b)=> a + Math.round(Number(b)*100), 0); if (Math.abs(total - paySum) > 1 || Math.abs(total - splitSum) > 1) { invalidExpenseIds.value.push(exp.id); } }); return invalidExpenseIds.value.length === 0; }
-            function handleSettlementClick() { if (!validateBeforeSettlement()) { alert('有花費金額尚未調整正確，請先修正標示紅色項目'); return; } showSettlement.value = true; }
-            function openAddExpense() { isEditing.value = false; form.value = { title: '', amount: '', date: new Date().toISOString().split('T')[0], category: '', pMode: 'equal', pList: members.value.length > 0 ? [members.value[0].id] : [], manualP: {}, sMode: 'equal', sList: members.value.map(m=>m.id), manualS: {} }; members.value.forEach(m => { form.value.manualP[m.id] = 0; form.value.manualS[m.id] = 0; }); showModal.value = true; }
-            function openEditExpense(e) { isEditing.value = true; editingExpenseId.value = e.id; const activePayers = Object.keys(e.payers).filter(id => Number(e.payers[id]) > 0.01).map(Number); const activeSplitters = Object.keys(e.split_details).filter(id => Number(e.split_details[id]) > 0.01).map(Number); const pVals = activePayers.map(id => Number(e.payers[id])); const sVals = activeSplitters.map(id => Number(e.split_details[id])); const isPManual = pVals.length > 1 ? !pVals.every(v => Math.abs(v - pVals[0]) < 0.2) : false; const isSManual = sVals.length > 1 ? !sVals.every(v => Math.abs(v - sVals[0]) < 0.2) : false; form.value = { title: e.title, amount: e.amount, date: e.date, category: e.category || '', pMode: isPManual ? 'manual' : 'equal', pList: activePayers, manualP: {...e.payers}, sMode: isSManual ? 'manual' : 'equal', sList: activeSplitters, manualS: {...e.split_details} }; members.value.forEach(m => { if (form.value.manualP[m.id] === undefined) form.value.manualP[m.id] = 0; if (form.value.manualS[m.id] === undefined) form.value.manualS[m.id] = 0; }); showModal.value = true; }
+
+            async function deleteMember(id) { 
+                if (confirm('確定刪除成員？該成員在花費中的紀錄也會被清理。')) { 
+                    const sid = String(id);
+                    const updates = [];
+                    expenses.value.forEach(exp => {
+                        let p = { ...exp.payers };
+                        let s = { ...exp.split_details };
+                        let dirty = false;
+                        if (p[sid] !== undefined || p[id] !== undefined) { delete p[sid]; delete p[id]; dirty = true; }
+                        if (s[sid] !== undefined || s[id] !== undefined) { delete s[sid]; delete s[id]; dirty = true; }
+                        if (!dirty) return;
+                        updates.push(client.from('expenses').update({ payers: p, split_details: s }).eq('id', exp.id));
+                    });
+                    if (updates.length > 0) await Promise.all(updates);
+                    await client.from('members').delete().eq('id', id);
+                    await loadData();
+                } 
+            }
+
+            function validateBeforeSettlement() {
+                invalidExpenseIds.value = [];
+                expenses.value.forEach(exp => {
+                    const total = Math.round(Number(exp.amount) * 100);
+                    const paySum = Object.values(exp.payers || {}).reduce((a,b)=> a + Math.round(Number(b)*100), 0);
+                    const splitSum = Object.values(exp.split_details || {}).reduce((a,b)=> a + Math.round(Number(b)*100), 0);
+                    if (Math.abs(total - paySum) > 1 || Math.abs(total - splitSum) > 1) {
+                        invalidExpenseIds.value.push(exp.id);
+                    }
+                });
+                return invalidExpenseIds.value.length === 0;
+            }
+
+            function handleSettlementClick() {
+                if (!validateBeforeSettlement()) {
+                    alert('有花費金額尚未調整正確，請先修正標示紅色項目'); return;
+                }
+                showSettlement.value = true;
+            }
+
+            function openAddExpense() {
+                isEditing.value = false;
+                form.value = { title: '', amount: '', date: new Date().toISOString().split('T')[0], category: '', pMode: 'equal', pList: members.value.length > 0 ? [members.value[0].id] : [], manualP: {}, sMode: 'equal', sList: members.value.map(m=>m.id), manualS: {} };
+                members.value.forEach(m => { form.value.manualP[m.id] = 0; form.value.manualS[m.id] = 0; });
+                showModal.value = true;
+            }
+
+            function openEditExpense(e) {
+                isEditing.value = true; editingExpenseId.value = e.id;
+                const activePayers = Object.keys(e.payers).filter(id => Number(e.payers[id]) > 0.01).map(Number);
+                const activeSplitters = Object.keys(e.split_details).filter(id => Number(e.split_details[id]) > 0.01).map(Number);
+                const pVals = activePayers.map(id => Number(e.payers[id]));
+                const sVals = activeSplitters.map(id => Number(e.split_details[id]));
+                const isPManual = pVals.length > 1 ? !pVals.every(v => Math.abs(v - pVals[0]) < 0.2) : false;
+                const isSManual = sVals.length > 1 ? !sVals.every(v => Math.abs(v - sVals[0]) < 0.2) : false;
+                form.value = {
+                    title: e.title, amount: e.amount, date: e.date, category: e.category || '',
+                    pMode: isPManual ? 'manual' : 'equal', pList: activePayers, manualP: {...e.payers},
+                    sMode: isSManual ? 'manual' : 'equal', sList: activeSplitters, manualS: {...e.split_details}
+                };
+                members.value.forEach(m => {
+                    if (form.value.manualP[m.id] === undefined) form.value.manualP[m.id] = 0;
+                    if (form.value.manualS[m.id] === undefined) form.value.manualS[m.id] = 0;
+                });
+                showModal.value = true;
+            }
+
             const payManualDiff = computed(() => Number(form.value.amount) - Object.values(form.value.manualP).reduce((a,b)=>a+(Number(b)||0), 0));
             const splitManualDiff = computed(() => Number(form.value.amount) - Object.values(form.value.manualS).reduce((a,b)=>a+(Number(b)||0), 0));
             const isValid = computed(() => form.value.title && Number(form.value.amount) > 0 && (form.value.pMode === 'manual' ? Math.abs(payManualDiff.value) < 1 : form.value.pList.length > 0) && (form.value.sMode === 'manual' ? Math.abs(splitManualDiff.value) < 1 : form.value.sList.length > 0));
-            async function submitExpense() { let p = {}, s = {}; const totalCents = Math.round(form.value.amount * 100); if (form.value.pMode === 'equal') { const avg = Math.floor(totalCents / form.value.pList.length); form.value.pList.forEach(id => p[id] = avg / 100); p[form.value.pList[0]] = (avg + (totalCents % form.value.pList.length)) / 100; } else p = form.value.manualP; if (form.value.sMode === 'equal') { const avg = Math.floor(totalCents / form.value.sList.length); form.value.sList.forEach(id => s[id] = avg / 100); s[form.value.sList[0]] = (avg + (totalCents % form.value.sList.length)) / 100; } else s = form.value.manualS; const payload = { project_id: currentProjectId.value, title: form.value.title, amount: form.value.amount, date: form.value.date, category: form.value.category, payers: p, split_details: s }; if(isEditing.value) await client.from('expenses').update(payload).eq('id', editingExpenseId.value); else await client.from('expenses').insert(payload); showModal.value = false; loadData(); }
+
+            async function submitExpense() {
+                let p = {}, s = {}; const totalCents = Math.round(form.value.amount * 100);
+                if (form.value.pMode === 'equal') { const avg = Math.floor(totalCents / form.value.pList.length); form.value.pList.forEach(id => p[id] = avg / 100); p[form.value.pList[0]] = (avg + (totalCents % form.value.pList.length)) / 100; } else p = form.value.manualP;
+                if (form.value.sMode === 'equal') { const avg = Math.floor(totalCents / form.value.sList.length); form.value.sList.forEach(id => s[id] = avg / 100); s[form.value.sList[0]] = (avg + (totalCents % form.value.sList.length)) / 100; } else s = form.value.manualS;
+                const payload = { project_id: currentProjectId.value, title: form.value.title, amount: form.value.amount, date: form.value.date, category: form.value.category, payers: p, split_details: s };
+                if(isEditing.value) await client.from('expenses').update(payload).eq('id', editingExpenseId.value); else await client.from('expenses').insert(payload);
+                showModal.value = false; loadData();
+            }
             async function deleteExpense() { if (confirm('確定刪除花費？')) { await client.from('expenses').delete().eq('id', editingExpenseId.value); showModal.value=false; loadData(); } }
-            const settlement = computed(() => { let bal = {}; members.value.forEach(m => bal[m.id]=0); expenses.value.forEach(e => { for(let id in e.payers) if(bal[id] !== undefined) bal[id] += Math.round(Number(e.payers[id]) * 100); for(let id in e.split_details) if(bal[id] !== undefined) bal[id] -= Math.round(Number(e.split_details[id]) * 100); }); const details = members.value.map(m => ({ id: m.id, name: m.name, net: bal[m.id]/100 })); let ts = [], ds = details.filter(x=>x.net < -0.01).sort((a,b)=>a.net-b.net), cs = details.filter(x=>x.net > 0.01).sort((a,b)=>b.net-a.net); let i=0, j=0; while(i < ds.length && j < cs.length) { let amt = Math.min(Math.abs(ds[i].net), cs[j].net); ts.push({from: ds[i].name, to: cs[j].name, amount: amt}); ds[i].net += amt; cs[j].net -= amt; if(Math.abs(ds[i].net)<0.01) i++; if(cs[j].net<0.01) j++; } return { transfers: ts }; });
+
+            const settlement = computed(() => {
+                let bal = {}; members.value.forEach(m => bal[m.id]=0);
+                expenses.value.forEach(e => {
+                    for(let id in e.payers) if(bal[id] !== undefined) bal[id] += Math.round(Number(e.payers[id]) * 100);
+                    for(let id in e.split_details) if(bal[id] !== undefined) bal[id] -= Math.round(Number(e.split_details[id]) * 100);
+                });
+                const details = members.value.map(m => ({ id: m.id, name: m.name, net: bal[m.id]/100 }));
+                let ts = [], ds = details.filter(x=>x.net < -0.01).sort((a,b)=>a.net-b.net), cs = details.filter(x=>x.net > 0.01).sort((a,b)=>b.net-a.net);
+                let i=0, j=0; while(i < ds.length && j < cs.length) {
+                    let amt = Math.min(Math.abs(ds[i].net), cs[j].net);
+                    ts.push({from: ds[i].name, to: cs[j].name, amount: amt});
+                    ds[i].net += amt; cs[j].net -= amt; if(Math.abs(ds[i].net)<0.01) i++; if(cs[j].net<0.01) j++;
+                }
+                return { transfers: ts };
+            });
+
             function pressPin(n) { if (pin.value.length < 4) pin.value += n; if (pin.value.length === 4) handlePinComplete(); }
             async function handlePinComplete() { if (isLocked.value) { if (pin.value === adminPass.value) { isLocked.value = false; currentProjectId.value = null; pin.value = ''; fetchProjects(); } else { alert('PIN 錯誤'); pin.value = ''; } } else if (showPassSettings.value) { await client.from('app_settings').upsert({ id: 'admin_password', value: pin.value }); adminPass.value = pin.value; showPassSettings.value = false; pin.value = ''; } }
             const pinContext = computed(() => isLocked.value ? {title:'管理員解鎖'} : {title:'設定新密碼'});
@@ -385,7 +503,7 @@
             function toggleAllSplit() { if (form.value.sList.length === members.value.length) form.value.sList = []; else form.value.sList = members.value.map(m => m.id); }
             function copyLink() { navigator.clipboard.writeText(window.location.href); showToast.value = true; setTimeout(() => showToast.value = false, 2000); }
 
-            return { projects, currentProjectId, projectMeta, members, expenses, showModal, showSettlement, isEditing, form, isValid, totalExpense, memberStats, settlement, isLocked, pin, pinContext, showPassSettings, newProjectTitle, showToast, isRefreshing, editingProjectId, editingProjectName, editingProjectDate, formatDate, getPayerDisplay, getSplitCount, fetchProjects, createProject, enterProject, loadData, manualRefresh, startEditProject, saveProjectName, deleteProject, addMember, updateMember, deleteMember, openAddExpense, openEditExpense, toggleMemberPay, toggleMemberSplit, toggleAllSplit, submitExpense, deleteExpense, pressPin, handlePinComplete, backToHome, closePinPad, triggerPassSetup, copyLink, payManualDiff, splitManualDiff, invalidExpenseIds, handleSettlementClick, sortedStats, getPaletteColor };
+            return { projects, currentProjectId, projectMeta, members, expenses, showModal, showSettlement, isEditing, form, isValid, totalExpense, memberStats, settlement, isLocked, pin, pinContext, showPassSettings, newProjectTitle, showToast, isRefreshing, editingProjectId, editingProjectName, editingProjectDate, formatDate, getPayerDisplay, getSplitCount, fetchProjects, createProject, enterProject, loadData, manualRefresh, startEditProject, saveProjectName, deleteProject, addMember, updateMember, deleteMember, openAddExpense, openEditExpense, toggleMemberPay, toggleMemberSplit, toggleAllSplit, submitExpense, deleteExpense, pressPin, handlePinComplete, backToHome, closePinPad, triggerPassSetup, copyLink, payManualDiff, splitManualDiff, invalidExpenseIds, handleSettlementClick, categoryStats, sortedCategoryList };
         }
     }).mount('#app');
 </script>
