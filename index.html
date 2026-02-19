@@ -13,101 +13,29 @@
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500&display=swap');
-        
-        :root {
-            --bg: #0F1115;
-            --primary: #F5F7FA;
-        }
-
+        :root { --bg: #0F1115; --primary: #F5F7FA; }
         html, body {
-            -webkit-text-size-adjust: 100%;
-            overflow-x: hidden;
-            width: 100%;
+            -webkit-text-size-adjust: 100%; overflow-x: hidden; width: 100%;
             background: radial-gradient(circle at top, #151922 0%, #0F1115 60%);
-            color: var(--primary);
-            font-family: 'Noto Sans TC', sans-serif;
-            -webkit-font-smoothing: antialiased;
-            touch-action: manipulation;
-            margin: 0;
+            color: var(--primary); font-family: 'Noto Sans TC', sans-serif;
+            -webkit-font-smoothing: antialiased; touch-action: manipulation; margin: 0;
         }
-
-        body {
-            display: flex;
-            justify-content: center;
-        }
-
-        #app {
-            width: 100%;
-            max-width: 390px;
-            margin: 0 auto;
-            min-height: 100vh;
-            position: relative;
-        }
-
-        main::-webkit-scrollbar {
-            display: none;
-        }
-
+        body { display: flex; justify-content: center; }
+        #app { width: 100%; max-width: 390px; margin: 0 auto; min-height: 100vh; position: relative; }
+        main::-webkit-scrollbar { display: none; }
         .f-light { font-weight: 300; }
         .f-medium { font-weight: 500; }
-
-        * {
-            -webkit-tap-highlight-color: transparent;
-            box-sizing: border-box;
-        }
-
-        .card {
-            @apply rounded-[24px];
-            background: rgba(255, 255, 255, 0.04);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            backdrop-filter: blur(12px);
-        }
-
-        .pin-btn {
-            width: 72px;
-            height: 72px;
-            border-radius: 22px;
-            font-size: 22px;
-            font-weight: 300;
-            background: rgba(255, 255, 255, 0.06);
-            color: #F5F7FA;
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            transition: transform 0.15s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .pin-btn:active {
-            transform: scale(0.95);
-            background: rgba(255, 255, 255, 0.12);
-        }
-
+        * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
+        .card { @apply rounded-[24px]; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); backdrop-filter: blur(12px); }
+        .pin-btn { width: 72px; height: 72px; border-radius: 22px; font-size: 22px; font-weight: 300; background: rgba(255,255,255,0.06); color: #F5F7FA; backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.08); transition: transform .15s ease; display: flex; align-items: center; justify-content: center; }
+        .pin-btn:active { transform: scale(0.95); background: rgba(255,255,255,0.12); }
         [v-cloak] { display: none; }
-
-        .fade-enter-active, .fade-leave-active {
-            transition: opacity 0.5s;
-        }
-        .fade-enter-from, .fade-leave-to {
-            opacity: 0;
-        }
-
-        .delete-btn-raw {
-            color: #6B7280;
-            transition: color 0.2s;
-        }
-        .delete-btn-raw:hover {
-            color: #F87171;
-        }
-
-        .rotate-anim {
-            animation: rotate 0.5s ease-in-out;
-        }
-        @keyframes rotate {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-        }
+        .fade-enter-active, .fade-leave-active { transition: opacity 0.5s; }
+        .fade-enter-from, .fade-leave-to { opacity: 0; }
+        .delete-btn-raw { color: #6B7280; transition: color 0.2s; }
+        .delete-btn-raw:hover { color: #F87171; }
+        .rotate-anim { animation: rotate 0.5s ease-in-out; }
+        @keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
     </style>
 </head>
 <body class="f-light">
@@ -115,69 +43,36 @@
 <div id="app" v-cloak class="flex flex-col relative px-5">
 
     <transition name="fade">
-        <div v-if="showToast" class="fixed top-16 left-1/2 -translate-x-1/2 bg-white/10 backdrop-blur-xl text-white text-xs f-medium px-8 py-3 rounded-full shadow-2xl border border-white/10 z-[999]">
-            連結已複製
-        </div>
+        <div v-if="showToast" class="fixed top-16 left-1/2 -translate-x-1/2 bg-white/10 backdrop-blur-xl text-white text-xs f-medium px-8 py-3 rounded-full shadow-2xl border border-white/10 z-[999]">連結已複製</div>
     </transition>
 
     <div v-if="isLocked || showPassSettings" class="fixed inset-0 bg-[#0F1115] z-[500] flex flex-col items-center justify-center p-6">
         <h2 class="text-xs mb-12 f-medium tracking-[0.4em] text-gray-500 uppercase">{{ pinContext.title }}</h2>
-        <div class="flex gap-4 mb-16">
-            <div v-for="i in 4" :key="i" class="w-12 h-12 border-b-2 flex items-center justify-center" :class="pin.length >= i ? 'border-white' : 'border-white/10'">
-                <span v-if="pin.length >= i" class="text-3xl mt-1 text-white">*</span>
-            </div>
-        </div>
-        <div class="grid grid-cols-3 gap-6">
-            <button v-for="n in 9" :key="n" @click="pressPin(n)" class="pin-btn">{{n}}</button>
-            <button @click="pin = ''" class="text-sm text-gray-500 f-medium">清除</button>
-            <button @click="pressPin(0)" class="pin-btn">0</button>
-            <button @click="closePinPad" class="text-sm text-white/60 f-medium">取消</button>
-        </div>
+        <div class="flex gap-4 mb-16"><div v-for="i in 4" class="w-12 h-12 border-b-2 flex items-center justify-center" :class="pin.length >= i ? 'border-white' : 'border-white/10'"><span v-if="pin.length >= i" class="text-3xl mt-1 text-white">*</span></div></div>
+        <div class="grid grid-cols-3 gap-6"><button v-for="n in 9" @click="pressPin(n)" class="pin-btn">{{n}}</button><button @click="pin=''" class="text-sm text-gray-500 f-medium">清除</button><button @click="pressPin(0)" class="pin-btn">0</button><button @click="closePinPad" class="text-sm text-white/60 f-medium">取消</button></div>
     </div>
 
     <div v-if="!currentProjectId" class="flex flex-col pt-12 animate-in fade-in">
         <header class="flex justify-between items-center mb-10 px-1">
             <h1 class="text-2xl f-light tracking-[-0.02em] text-white/90">Split.</h1>
-            <button @click="triggerPassSetup" class="p-3 bg-white/5 rounded-2xl text-gray-400 border border-white/5">
-                <i data-lucide="shield"></i>
-            </button>
+            <button @click="triggerPassSetup" class="p-3 bg-white/5 rounded-2xl text-gray-400 border border-white/5"><i data-lucide="shield"></i></button>
         </header>
-
         <div class="flex items-center gap-3 w-full mb-12">
-            <input 
-                v-model="newProjectTitle" 
-                type="text" 
-                placeholder="去哪裡旅行？" 
-                @keyup.enter="createProject"
-                class="w-full bg-white/5 border border-white/5 rounded-2xl px-6 py-4 text-base outline-none f-light text-white"
-            >
-            <button @click="createProject" class="w-14 h-14 bg-white/10 rounded-2xl flex items-center justify-center flex-shrink-0 border border-white/5 active:scale-95">
-                <i data-lucide="plus" class="w-5 h-5 text-white/40"></i>
-            </button>
+            <input v-model="newProjectTitle" type="text" placeholder="去哪裡旅行？" @keyup.enter="createProject" class="w-full bg-white/5 border border-white/5 rounded-2xl px-6 py-4 text-base outline-none f-light text-white">
+            <button @click="createProject" class="w-14 h-14 bg-white/10 rounded-2xl flex items-center justify-center flex-shrink-0 border border-white/5 active:scale-95"><i data-lucide="plus" class="w-5 h-5 text-white/40"></i></button>
         </div>
-
         <div class="space-y-4 pb-24">
             <div v-for="p in projects" :key="p.id" @click="enterProject(p.id)" class="card px-6 py-4 flex justify-between items-center active:scale-[0.98] transition-all">
                 <div class="flex-1 overflow-hidden mr-2">
                     <div v-if="editingProjectId === p.id" @click.stop class="space-y-2">
                         <input v-model="editingProjectName" class="w-full border-b border-white/20 bg-transparent outline-none py-1 text-base text-white">
-                        <div class="flex items-center justify-between">
-                            <input type="date" v-model="editingProjectDate" @click.stop class="text-[10px] text-gray-500 bg-white/5 px-2 py-1 rounded">
-                            <button @click="saveProjectName(p.id)" class="text-white font-bold text-xs">儲存</button>
-                        </div>
+                        <div class="flex items-center justify-between"><input type="date" v-model="editingProjectDate" @click.stop class="text-[10px] text-gray-500 bg-white/5 px-2 py-1 rounded"><button @click="saveProjectName(p.id)" class="text-white font-bold text-xs">儲存</button></div>
                     </div>
-                    <div v-else>
-                        <span class="text-lg f-medium text-white truncate block mb-1">{{ p.name }}</span>
-                        <span class="text-[10px] text-gray-500 uppercase tracking-widest f-medium">{{ formatDate(p.created_at) }}</span>
-                    </div>
+                    <div v-else><span class="text-lg f-medium text-white truncate block mb-1">{{ p.name }}</span><span class="text-[10px] text-gray-500 uppercase tracking-widest f-medium">{{ formatDate(p.created_at) }}</span></div>
                 </div>
                 <div v-if="editingProjectId !== p.id" class="flex gap-1">
-                    <button @click.stop="startEditProject(p)" class="p-2 text-gray-500">
-                        <i data-lucide="edit-2" class="w-4 h-4"></i>
-                    </button>
-                    <button @click.stop="deleteProject(p.id)" class="p-2 text-gray-500 hover:text-red-400">
-                        <i data-lucide="trash" class="w-4 h-4"></i>
-                    </button>
+                    <button @click.stop="startEditProject(p)" class="p-2 text-gray-500"><i data-lucide="edit-2" class="w-4 h-4"></i></button>
+                    <button @click.stop="deleteProject(p.id)" class="p-2 text-gray-500 hover:text-red-400"><i data-lucide="trash" class="w-4 h-4"></i></button>
                 </div>
             </div>
         </div>
@@ -192,7 +87,8 @@
                 {{ projectMeta.name }}
             </h2>
             <div class="flex items-center gap-1 z-10">
-                <button @click="manualRefresh" class="p-2 text-gray-500 hover:text-white transition-colors" :class="{'rotate-anim': isRefreshing}">
+                <button @click="manualRefresh" class="p-2 text-gray-500 hover:text-white transition-colors"
+                    :class="{'rotate-anim': isRefreshing}">
                     <i data-lucide="refresh-cw" class="w-5 h-5"></i>
                 </button>
                 <button @click="copyLink" class="p-2 text-gray-500 hover:text-white">
@@ -201,62 +97,39 @@
             </div>
         </header>
 
+        <div class="text-center text-[11px] text-blue-300 tracking-widest mb-4">
+            {{ formatDate(projectMeta.created_at) }}
+        </div>
+
         <main class="flex-1 overflow-y-auto pt-2 pb-36 px-1">
             <div class="mb-10 w-full flex flex-col items-center">
-                <h3 class="text-sm text-blue-300 tracking-[0.3em] uppercase f-medium mb-6 text-center w-full max-w-[240px]">個人支出</h3>
+                <h3 class="text-sm text-blue-300 tracking-[0.3em] uppercase f-medium mb-6 text-center w-full">個人支出</h3>
                 <div class="space-y-3 w-full max-w-[240px] bg-white/5 p-5 rounded-[24px] border border-white/10">
-                    <div v-for="m in members" :key="m.id" class="flex justify-between text-sm">
-                        <span class="f-medium text-blue-300">{{m.name}}</span>
-                        <span class="f-medium text-white">${{ (memberStats[m.id] || 0).toLocaleString() }}</span>
-                    </div>
+                    <div v-for="m in members" :key="m.id" class="flex justify-between text-sm"><span class="f-medium text-blue-300">{{m.name}}</span><span class="f-medium text-white">${{ (memberStats[m.id] || 0).toLocaleString() }}</span></div>
                 </div>
-                <div class="mt-6 text-center text-sm text-blue-300 f-medium tracking-wider">
-                    總支出 ${{ totalExpense.toLocaleString() }}
-                </div>
-                <button 
-                    @click="handleSettlementClick"
-                    class="mt-10 bg-white text-black px-10 py-3 rounded-full text-sm f-medium tracking-wider shadow-lg active:scale-95 transition-all"
-                >
-                    查看結算
-                </button>
+                <div class="mt-6 text-center text-sm text-blue-300 f-medium tracking-wider">總支出 ${{ totalExpense.toLocaleString() }}</div>
+                <button @click="handleSettlementClick" class="mt-10 bg-white text-black px-10 py-3 rounded-full text-sm f-medium tracking-wider shadow-lg active:scale-95 transition-all">查看結算</button>
             </div>
             
             <section class="mb-10">
-                <div class="flex justify-between items-center mb-4 px-2">
-                    <h3 class="text-xs text-blue-300 tracking-[0.3em] uppercase f-medium">成員</h3>
-                    <button @click="addMember" class="text-xl text-white f-medium px-2">＋</button>
-                </div>
+                <div class="flex justify-between items-center mb-4 px-2"><h3 class="text-xs text-blue-300 tracking-[0.3em] uppercase f-medium">成員</h3><button @click="addMember" class="text-xl text-white f-medium px-2">＋</button></div>
                 <div class="grid grid-cols-2 gap-3">
                     <div v-for="m in members" :key="m.id" class="flex items-center gap-3 p-4 card">
-                        <input 
-                            v-model="m.name" 
-                            @blur="updateMember(m)"
-                            class="flex-1 min-w-0 bg-transparent outline-none text-sm f-medium text-white"
-                        >
+                        <input v-model="m.name" @blur="updateMember(m)" class="flex-1 min-w-0 bg-transparent outline-none text-sm f-medium text-white">
                         <button @mousedown.prevent="deleteMember(m.id)" class="delete-btn-raw p-1">
-                            <i data-lucide="x" class="w-4 h-4"></i>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                         </button>
                     </div>
                 </div>
             </section>
 
             <section>
-                <div class="flex justify-between items-center mb-4 px-2">
-                    <h3 class="text-xs text-blue-300 tracking-[0.3em] uppercase f-medium">花費</h3>
-                    <button @click="openAddExpense" class="text-xl text-white f-medium px-2">＋</button>
-                </div>
-                <div 
-                    v-for="exp in expenses" 
-                    :key="exp.id" 
-                    @click="openEditExpense(exp)"
-                    class="card p-5 mb-3 flex justify-between items-center active:scale-[0.98] transition-all"
-                    :class="{'border border-red-500/40 bg-red-500/5': invalidExpenseIds.includes(exp.id)}"
-                >
+                <div class="flex justify-between items-center mb-4 px-2"><h3 class="text-xs text-blue-300 tracking-[0.3em] uppercase f-medium">花費</h3><button @click="openAddExpense" class="text-xl text-white f-medium px-2">＋</button></div>
+                <div v-for="exp in expenses" :key="exp.id" @click="openEditExpense(exp)" 
+                     :class="['card p-5 mb-3 flex justify-between items-center active:scale-[0.98] transition-all', invalidExpenseIds.includes(exp.id) ? 'border border-red-500/40 bg-red-500/5' : '']">
                     <div class="flex-1 truncate pr-3">
                         <p class="text-base f-medium mb-1 truncate text-white">{{ exp.title }}</p>
-                        <p class="text-xs text-blue-300 f-medium">
-                            {{ exp.category || '未分類' }} · {{ getPayerDisplay(exp) }} · {{ getSplitCount(exp) }} 人分攤
-                        </p>
+                        <p class="text-xs text-blue-300 f-medium">{{ exp.category || '未分類' }} · {{ getPayerDisplay(exp) }} · {{ getSplitCount(exp) }} 人分攤</p>
                     </div>
                     <div class="text-right">
                         <span class="f-medium text-xl tracking-tight text-white">${{ Number(exp.amount).toLocaleString() }}</span>
@@ -269,30 +142,13 @@
 
     <div v-if="showModal" class="fixed inset-0 bg-black/60 backdrop-blur-md z-[200] flex items-end justify-center">
         <div class="bg-[#161A22] w-full max-w-[390px] mx-auto h-[85vh] rounded-t-[32px] p-8 overflow-y-auto border-t border-white/10">
-            <div class="flex justify-between items-center mb-8">
-                <span class="text-xs tracking-[0.3em] text-blue-300 uppercase f-medium">{{ isEditing ? '編輯花費' : '新增花費' }}</span>
-                <button @click="showModal = false" class="p-2 bg-white/5 rounded-full text-blue-300">
-                    <i data-lucide="x" class="w-5 h-5"></i>
-                </button>
-            </div>
-
+            <div class="flex justify-between items-center mb-8"><span class="text-xs tracking-[0.3em] text-blue-300 uppercase f-medium">{{ isEditing ? '編輯花費' : '新增花費' }}</span><button @click="showModal = false" class="p-2 bg-white/5 rounded-full text-blue-300"><i data-lucide="x" class="w-5 h-5"></i></button></div>
             <div class="space-y-4 pb-10">
                 <input v-model="form.date" type="date" class="w-full text-base text-blue-300 mb-2 outline-none bg-transparent f-medium">
-                
-                <input 
-                    v-model="form.title" 
-                    type="text" 
-                    placeholder="消費項目" 
-                    class="w-full bg-transparent border-b border-white/10 py-3 text-lg text-white outline-none"
-                >
+                <input v-model="form.title" type="text" placeholder="消費項目" class="w-full bg-transparent border-b border-white/10 py-3 text-lg text-white outline-none">
                 
                 <div class="flex gap-3 items-end border-b border-white/10 pb-3">
-                    <input 
-                        v-model.number="form.amount" 
-                        type="number" 
-                        placeholder="金額" 
-                        class="w-28 bg-transparent text-lg text-white outline-none"
-                    >
+                    <input v-model.number="form.amount" type="number" placeholder="金額" class="w-28 bg-transparent text-lg text-white outline-none">
                     <select v-model="form.category" class="flex-1 min-w-0 bg-white/5 border border-white/10 text-blue-300 text-sm px-3 py-2 rounded-xl outline-none">
                         <option value="" class="bg-[#161A22]">未分類</option>
                         <option value="飲食" class="bg-[#161A22]">飲食</option>
@@ -302,112 +158,45 @@
                         <option value="購物" class="bg-[#161A22]">購物</option>
                     </select>
                 </div>
-
+                
                 <div class="pt-6 space-y-8">
                     <div>
-                        <div class="flex justify-between items-center mb-4">
-                            <span class="text-xs text-blue-300 uppercase f-medium">誰付款？</span>
-                            <button 
-                                @click="form.pMode = form.pMode === 'equal' ? 'manual' : 'equal'"
-                                class="text-xs bg-white/5 text-blue-300 px-4 py-1.5 rounded-full"
-                            >
-                                {{ form.pMode === 'equal' ? '平均' : '手動' }}
-                            </button>
+                        <div class="flex justify-between items-center mb-4"><span class="text-xs text-blue-300 uppercase f-medium">誰付款？</span><button @click="form.pMode = form.pMode==='equal'?'manual':'equal'" class="text-xs bg-white/5 text-blue-300 px-4 py-1.5 rounded-full">{{ form.pMode==='equal' ? '平均' : '手動' }}</button></div>
+                        <div v-if="form.pMode==='equal'" class="flex flex-wrap gap-2">
+                            <button v-for="m in members" @click="toggleMemberPay(m.id)" :class="form.pList.includes(m.id)?'bg-blue-500/20 text-blue-200 border-blue-400/20':'bg-white/5 text-blue-300'" class="px-5 py-2.5 rounded-2xl text-sm f-medium border border-transparent">{{m.name}}</button>
                         </div>
-                        
-                        <div v-if="form.pMode === 'equal'" class="flex flex-wrap gap-2">
-                            <button 
-                                v-for="m in members" 
-                                :key="m.id"
-                                @click="toggleMemberPay(m.id)"
-                                class="px-5 py-2.5 rounded-2xl text-sm f-medium border border-transparent transition-all"
-                                :class="form.pList.includes(m.id) ? 'bg-blue-500/20 text-blue-200 border-blue-400/20' : 'bg-white/5 text-blue-300'"
-                            >
-                                {{m.name}}
-                            </button>
-                        </div>
-                        
                         <div v-else class="space-y-3">
-                            <div v-for="m in members" :key="m.id" class="flex justify-between items-center p-3 bg-white/5 rounded-2xl">
+                            <div v-for="m in members" class="flex justify-between items-center p-3 bg-white/5 rounded-2xl">
                                 <span class="text-sm text-white">{{m.name}}</span>
-                                <input 
-                                    v-model.number="form.manualP[m.id]" 
-                                    type="number" 
-                                    class="w-24 bg-transparent text-right outline-none text-base text-white border-b border-white/10"
-                                >
+                                <input v-model.number="form.manualP[m.id]" type="number" class="w-24 bg-transparent text-right outline-none text-base text-white border-b border-white/10">
                             </div>
+                            <p class="text-sm text-center mt-2" :class="Math.abs(payManualDiff) > 0.1 ? 'text-red-400' : 'text-green-400'">差額 {{ payManualDiff > 0 ? '+' : '' }}{{ payManualDiff.toFixed(1) }}</p>
                         </div>
                     </div>
-
                     <div>
-                        <div class="flex justify-between items-center mb-4">
-                            <span class="text-xs text-blue-300 uppercase f-medium">誰分攤？</span>
-                            <div class="flex gap-2">
-                                <button v-if="form.sMode === 'equal'" @click="toggleAllSplit" class="text-xs text-blue-300 f-medium mr-2">全選</button>
-                                <button 
-                                    @click="form.sMode = form.sMode === 'equal' ? 'manual' : 'equal'"
-                                    class="text-xs bg-white/5 text-blue-300 px-4 py-1.5 rounded-full"
-                                >
-                                    {{ form.sMode === 'equal' ? '平均' : '手動' }}
-                                </button>
-                            </div>
+                        <div class="flex justify-between items-center mb-4"><span class="text-xs text-blue-300 uppercase f-medium">誰分攤？</span><div class="flex gap-2"><button v-if="form.sMode==='equal'" @click="toggleAllSplit" class="text-xs text-blue-300 f-medium mr-2">全選</button><button @click="form.sMode = form.sMode==='equal'?'manual':'equal'" class="text-xs bg-white/5 text-blue-300 px-4 py-1.5 rounded-full">{{ form.sMode==='equal' ? '平均' : '手動' }}</button></div></div>
+                        <div v-if="form.sMode==='equal'" class="flex flex-wrap gap-2">
+                            <button v-for="m in members" @click="toggleMemberSplit(m.id)" :class="form.sList.includes(m.id)?'bg-blue-500/20 text-blue-200 border-blue-400/20':'bg-white/5 text-blue-300'" class="px-5 py-2.5 rounded-2xl text-sm f-medium border border-transparent">{{m.name}}</button>
                         </div>
-
-                        <div v-if="form.sMode === 'equal'" class="flex flex-wrap gap-2">
-                            <button 
-                                v-for="m in members" 
-                                :key="m.id"
-                                @click="toggleMemberSplit(m.id)"
-                                class="px-5 py-2.5 rounded-2xl text-sm f-medium border border-transparent transition-all"
-                                :class="form.sList.includes(m.id) ? 'bg-blue-500/20 text-blue-200 border-blue-400/20' : 'bg-white/5 text-blue-300'"
-                            >
-                                {{m.name}}
-                            </button>
-                        </div>
-
                         <div v-else class="space-y-3">
-                            <div v-for="m in members" :key="m.id" class="flex justify-between items-center p-3 bg-white/5 rounded-2xl">
+                            <div v-for="m in members" class="flex justify-between items-center p-3 bg-white/5 rounded-2xl">
                                 <span class="text-sm text-white">{{m.name}}</span>
-                                <input 
-                                    v-model.number="form.manualS[m.id]" 
-                                    type="number" 
-                                    class="w-24 bg-transparent text-right outline-none text-base text-white border-b border-white/10"
-                                >
+                                <input v-model.number="form.manualS[m.id]" type="number" class="w-24 bg-transparent text-right outline-none text-base text-white border-b border-white/10">
                             </div>
+                            <p class="text-sm text-center mt-2" :class="Math.abs(splitManualDiff) > 0.1 ? 'text-red-400' : 'text-green-400'">差額 {{ splitManualDiff > 0 ? '+' : '' }}{{ splitManualDiff.toFixed(1) }}</p>
                         </div>
                     </div>
                 </div>
-
-                <div class="flex flex-col gap-4 pt-6">
-                    <button 
-                        @click="submitExpense" 
-                        :disabled="!isValid"
-                        class="w-full bg-white text-black py-4 rounded-2xl text-sm f-medium disabled:opacity-20 shadow-lg"
-                    >
-                        儲存花費
-                    </button>
-                    <button v-if="isEditing" @click="deleteExpense" class="text-red-400 text-xs f-medium py-2">
-                        刪除這筆花費
-                    </button>
-                </div>
+                <div class="flex flex-col gap-4 pt-6"><button @click="submitExpense" :disabled="!isValid" class="w-full bg-white text-black py-4 rounded-2xl text-sm f-medium disabled:opacity-20 shadow-lg">儲存花費</button><button v-if="isEditing" @click="deleteExpense" class="text-red-400 text-xs f-medium py-2">刪除花費</button></div>
             </div>
         </div>
     </div>
 
     <div v-if="showSettlement" class="fixed inset-0 bg-[#0F1115] z-[300] flex flex-col p-8 overflow-y-auto animate-in fade-in">
-        <div class="flex justify-between items-center mb-16">
-            <h2 class="text-3xl f-light text-white">建議轉帳路徑</h2>
-            <button @click="showSettlement = false" class="p-3 bg-white/5 rounded-2xl text-gray-500">
-                <i data-lucide="x" class="w-5 h-5"></i>
-            </button>
-        </div>
-
+        <div class="flex justify-between items-center mb-16"><h2 class="text-3xl f-light text-white">建議轉帳路徑</h2><button @click="showSettlement=false" class="p-3 bg-white/5 rounded-2xl text-gray-500"><i data-lucide="x" class="w-5 h-5"></i></button></div>
         <div class="space-y-6">
-            <div v-for="(t, index) in settlement.transfers" :key="index" class="flex justify-between items-center p-6 rounded-[24px] bg-white/5 border border-white/10 backdrop-blur-md">
-                <div class="flex flex-col gap-1">
-                    <span class="text-[14px] text-blue-300 uppercase tracking-widest">由 {{t.from}}</span>
-                    <span class="text-sm f-medium text-white">給 {{t.to}}</span>
-                </div>
+            <div v-for="t in settlement.transfers" class="flex justify-between items-center p-6 rounded-[24px] bg-white/5 border border-white/10 backdrop-blur-md">
+                <div class="flex flex-col gap-1"><span class="text-[14px] text-blue-300 uppercase tracking-widest">由 {{t.from}}</span><span class="text-sm f-medium text-white">給 {{t.to}}</span></div>
                 <span class="f-medium text-2xl text-white">${{Math.round(t.amount)}}</span>
             </div>
             <p v-if="settlement.transfers.length === 0" class="text-center text-blue-300 py-10">目前無須轉帳</p>
@@ -415,9 +204,10 @@
 
         <div class="mt-20 pb-12 flex flex-col items-center">
             <h2 class="text-3xl f-light text-white mb-12 w-full text-left">分類統計</h2>
-            <div class="w-full relative px-4 flex justify-center">
+            <div class="w-full max-w-[33%] mx-auto relative">
                 <canvas id="categoryChart"></canvas>
             </div>
+            <div class="mt-4 w-full max-w-[33%] mx-auto" id="categoryList"></div>
         </div>
     </div>
 </div>
@@ -426,49 +216,41 @@
     const SB_URL = 'https://kwrefnmhjuwnvfipxdyq.supabase.co';
     const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt3cmVmbm1oanV3bnZmaXB4ZHlxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEyOTQ4NTksImV4cCI6MjA4Njg3MDg1OX0.jthw2efO6SSzIm0PpY0scQ9cBrAtByEzxxrzz1YOHlc';
     const client = supabase.createClient(SB_URL, SB_KEY);
-
     const { createApp, ref, computed, onMounted, nextTick, watch } = Vue;
 
     createApp({
         setup() {
-            const projects = ref([]);
-            const currentProjectId = ref(null);
-            const projectMeta = ref({});
-            const members = ref([]);
-            const expenses = ref([]);
-            const showModal = ref(false);
-            const showSettlement = ref(false);
-            const isEditing = ref(false);
-            const editingExpenseId = ref(null);
-            const editingProjectId = ref(null);
-            const editingProjectName = ref('');
-            const editingProjectDate = ref('');
-            const adminPass = ref(null);
-            const isLocked = ref(false);
-            const showPassSettings = ref(false);
-            const pin = ref('');
-            const newProjectTitle = ref('');
-            const showToast = ref(false);
-            const isRefreshing = ref(false);
+            const projects = ref([]); const currentProjectId = ref(null); const projectMeta = ref({}); const members = ref([]); const expenses = ref([]);
+            const showModal = ref(false); const showSettlement = ref(false); const isEditing = ref(false); const editingExpenseId = ref(null);
+            const editingProjectId = ref(null); const editingProjectName = ref(''); const editingProjectDate = ref('');
+            const adminPass = ref(null); const isLocked = ref(false); const showPassSettings = ref(false); const pin = ref('');
+            const newProjectTitle = ref(''); const showToast = ref(false); const isRefreshing = ref(false);
+            
+            const form = ref({ title: '', amount: '', date: '', category: '', pMode: 'equal', pList: [], manualP: {}, sMode: 'equal', sList: [], manualS: {} });
             const invalidExpenseIds = ref([]);
 
-            const form = ref({
-                title: '',
-                amount: '',
-                date: '',
-                category: '',
-                pMode: 'equal',
-                pList: [],
-                manualP: {},
-                sMode: 'equal',
-                sList: [],
-                manualS: {}
+            const refreshIcons = () => nextTick(() => { if(window.lucide) lucide.createIcons(); });
+            onMounted(async () => {
+                const { data } = await client.from('app_settings').select('value').eq('id', 'admin_password').single();
+                adminPass.value = data?.value;
+                const pid = new URLSearchParams(window.location.search).get('pid');
+                if (pid) enterProject(pid); else fetchProjects();
             });
+            watch([projects, currentProjectId, showModal, showSettlement, isLocked], refreshIcons);
 
-            let chartInstance = null;
+            const formatDate = (d) => d ? new Date(d).toISOString().split('T')[0] : '';
+            function getSplitCount(exp) { return Object.values(exp.split_details || {}).filter(v => Number(v) > 0.1).length; }
+            function getPayerDisplay(exp) {
+                const valid = Object.entries(exp.payers || {}).filter(([id, v]) => members.value.some(m => m.id == id) && Number(v) > 0.1);
+                if (valid.length === 1) { const m = members.value.find(x => x.id == valid[0][0]); return m ? `${m.name} 付款` : '1人付款'; }
+                return `${valid.length} 人付款`;
+            }
 
-            const totalExpense = computed(() => {
-                return expenses.value.reduce((a, b) => a + (Number(b.amount) || 0), 0);
+            const totalExpense = computed(() => expenses.value.reduce((a,b)=> a + (Number(b.amount) || 0), 0));
+            const memberStats = computed(() => {
+                let res = {}; members.value.forEach(m => res[m.id] = 0);
+                expenses.value.forEach(e => { for (let id in e.split_details) if (res[id] !== undefined) res[id] += Number(e.split_details[id]); });
+                return res;
             });
 
             const categoryStats = computed(() => {
@@ -480,47 +262,26 @@
                 return map;
             });
 
-            const memberStats = computed(() => {
-                let res = {};
-                members.value.forEach(m => res[m.id] = 0);
-                expenses.value.forEach(e => {
-                    for (let id in e.split_details) {
-                        if (res[id] !== undefined) res[id] += Number(e.split_details[id]);
-                    }
-                });
-                return res;
-            });
-
-            // 圓餅圖改進：縮小、光圈、百分比
+            let chartInstance = null;
             watch(showSettlement, (val) => {
                 if (!val) return;
+
                 nextTick(() => {
                     const canvas = document.getElementById('categoryChart');
                     if (!canvas) return;
+
                     const ctx = canvas.getContext('2d');
                     if (chartInstance) chartInstance.destroy();
 
-                    const sorted = Object.entries(categoryStats.value).sort((a, b) => b[1] - a[1]);
-                    const labels = sorted.map(x => x[0]);
-                    const values = sorted.map(x => x[1]);
-                    const total = values.reduce((a, b) => a + b, 0);
-                    const palette = ['#8DA2B8','#A7BFA6','#B8A6B3','#C2B59B','#9FA8B2','#B4B4B4'];
+                    // 由金額多到少排序
+                    const entries = Object.entries(categoryStats.value).sort((a,b)=>b[1]-a[1]);
+                    const labels = entries.map(e=>e[0]);
+                    const values = entries.map(e=>e[1]);
+                    const total = values.reduce((a,b)=>a+b,0);
 
-                    const glowPlugin = {
-                        id: 'outerGlow',
-                        beforeDraw(chart) {
-                            const { ctx, chartArea } = chart;
-                            ctx.save();
-                            ctx.shadowBlur = 30;
-                            ctx.shadowColor = 'rgba(255,255,255,0.15)';
-                            const radius = Math.min(chartArea.right - chartArea.left, chartArea.bottom - chartArea.top)/2;
-                            ctx.beginPath();
-                            ctx.arc((chartArea.left+chartArea.right)/2, (chartArea.top+chartArea.bottom)/2, radius, 0, Math.PI*2);
-                            ctx.fillStyle = 'rgba(0,0,0,0)';
-                            ctx.fill();
-                            ctx.restore();
-                        }
-                    };
+                    const palette = [
+                        '#a8dadc', '#457b9d', '#f1faee', '#1d3557', '#e63946', '#6d6875', '#b7b7a4', '#a5a58d'
+                    ]; // 霧感低飽和色
 
                     chartInstance = new Chart(ctx, {
                         type: 'doughnut',
@@ -528,183 +289,128 @@
                             labels,
                             datasets: [{
                                 data: values,
-                                backgroundColor: palette.slice(0, labels.length),
-                                borderWidth: 0
+                                backgroundColor: labels.map((_, i)=>palette[i % palette.length]),
+                                borderWidth: 0,
+                                hoverOffset: 12
                             }]
                         },
                         options: {
-                            cutout: '50%',
-                            layout: { padding: 20 },
+                            cutout: '35%', // 圓餅加厚
+                            layout: { padding: 10 },
+                            animation: { animateRotate: true, duration: 1000 },
                             plugins: {
                                 legend: { display: false },
-                                tooltip: { enabled: true }
-                            }
+                                tooltip: { enabled: false }
+                            },
+                            responsive: true,
+                            maintainAspectRatio: false
                         },
-                        plugins: [
-                            glowPlugin,
-                            {
-                                id: 'centerText',
-                                afterDraw(chart) {
-                                    const { ctx, chartArea } = chart;
-                                    const centerX = (chartArea.left + chartArea.right)/2;
-                                    const centerY = (chartArea.top + chartArea.bottom)/2;
-                                    ctx.save();
-                                    ctx.fillStyle = '#F5F7FA';
-                                    ctx.textAlign = 'center';
-                                    ctx.font = "12px 'Noto Sans TC'";
-                                    ctx.fillText('總額', centerX, centerY - 8);
-                                    ctx.font = "bold 18px 'Noto Sans TC'";
-                                    ctx.fillText(`$${Math.round(total).toLocaleString()}`, centerX, centerY + 16);
-                                    ctx.restore();
-                                }
+                        plugins: [{
+                            id: 'centerText',
+                            afterDraw(chart) {
+                                const { ctx } = chart;
+                                ctx.save();
+                                // 外圍淡光圈
+                                ctx.shadowBlur = 12;
+                                ctx.shadowColor = 'rgba(255,255,255,0.1)';
+
+                                // 中心文字
+                                ctx.fillStyle = '#F5F7FA';
+                                ctx.font = "bold 18px 'Noto Sans TC'";
+                                ctx.textAlign = 'center';
+                                ctx.textBaseline = 'middle';
+                                ctx.fillText(`$${Math.round(total).toLocaleString()}`, chart.width/2, chart.height/2);
+                                ctx.restore();
                             }
-                        ]
+                        }]
                     });
 
-                    // 分類列表與佔比
-                    const container = canvas.parentElement;
-                    let oldList = document.getElementById('categoryList');
-                    if (oldList) oldList.remove();
-                    const list = document.createElement('div');
-                    list.id = 'categoryList';
-                    list.className = 'mt-8 space-y-3 w-full';
-                    sorted.forEach((item, i) => {
-                        const pct = total > 0 ? ((item[1]/total)*100).toFixed(1) : 0;
-                        const row = document.createElement('div');
-                        row.className = 'flex justify-between items-center text-sm';
-                        row.innerHTML = `
-                            <div class="flex items-center gap-3">
-                                <div style="width:12px;height:12px;border-radius:50%;background:${palette[i]}"></div>
-                                <span class="text-blue-300 f-medium">${item[0]}</span>
-                            </div>
-                            <span class="text-white f-medium">$${Math.round(item[1]).toLocaleString()} (${pct}%)</span>
-                        `;
-                        list.appendChild(row);
-                    });
-                    container.appendChild(list);
+                    // 下方列表顯示金額與佔比
+                    const listContainer = document.getElementById('categoryList');
+                    if(listContainer){
+                        listContainer.innerHTML = '';
+                        entries.forEach(([cat, val], i) => {
+                            const perc = ((val/total)*100).toFixed(0);
+                            const row = document.createElement('div');
+                            row.className = 'flex justify-between text-sm mb-1';
+                            row.innerHTML = `<span class="f-medium text-blue-300">${cat}</span><span class="f-medium text-white">${val.toLocaleString()} (${perc}%)</span>`;
+                            listContainer.appendChild(row);
+                        });
+                    }
                 });
             });
 
-            const refreshIcons = () => {
-                nextTick(() => {
-                    if (window.lucide) lucide.createIcons();
-                });
-            };
-
-            onMounted(async () => {
-                const { data } = await client.from('app_settings').select('value').eq('id', 'admin_password').single();
-                adminPass.value = data?.value;
-                const pid = new URLSearchParams(window.location.search).get('pid');
-                if (pid) {
-                    enterProject(pid);
-                } else {
-                    fetchProjects();
-                }
-            });
-
-            watch([projects, currentProjectId, showModal, showSettlement, isLocked], refreshIcons);
-
-            const formatDate = (d) => {
-                if (!d) return '';
-                return new Date(d).toISOString().split('T')[0];
-            };
-
-            function getSplitCount(exp) {
-                return Object.values(exp.split_details || {}).filter(v => Number(v) > 0.1).length;
-            }
-
-            function getPayerDisplay(exp) {
-                const validPayers = Object.entries(exp.payers || {}).filter(([id, val]) => {
-                    return members.value.some(m => m.id == id) && Number(val) > 0.1;
-                });
-                if (validPayers.length === 1) {
-                    const m = members.value.find(x => x.id == validPayers[0][0]);
-                    return m ? `${m.name} 付款` : '1人付款';
-                }
-                return `${validPayers.length} 人付款`;
-            }
-
-            async function fetchProjects() {
-                const { data } = await client.from('projects').select('*').order('created_at', { ascending: false });
+            async function fetchProjects() { 
+                const { data } = await client
+                    .from('projects')
+                    .select('*')
+                    .order('created_at', { ascending: false }); 
                 projects.value = data || [];
             }
-
-            async function enterProject(id) {
-                currentProjectId.value = id;
-                window.history.pushState({}, '', `?pid=${id}`);
-                await loadData();
-            }
-
+            async function enterProject(id) { currentProjectId.value = id; window.history.pushState({}, '', `?pid=${id}`); await loadData(); }
             async function loadData() {
-                const { data: p } = await client.from('projects').select('*').eq('id', currentProjectId.value).single();
-                projectMeta.value = p || {};
-                const { data: m } = await client.from('members').select('*').eq('project_id', currentProjectId.value).order('id');
-                members.value = m || [];
-                const { data: e } = await client.from('expenses').select('*').eq('project_id', currentProjectId.value).order('created_at');
-                expenses.value = e || [];
+                const { data: p } = await client.from('projects').select('*').eq('id', currentProjectId.value).single(); projectMeta.value = p || {};
+                const { data: m } = await client.from('members').select('*').eq('project_id', currentProjectId.value).order('id'); members.value = m || [];
+                const { data: e } = await client.from('expenses').select('*').eq('project_id', currentProjectId.value).order('created_at'); expenses.value = e || [];
                 validateBeforeSettlement();
             }
+            async function manualRefresh() { isRefreshing.value = true; await loadData(); setTimeout(() => isRefreshing.value = false, 500); }
 
-            async function manualRefresh() {
-                isRefreshing.value = true;
-                await loadData();
-                setTimeout(() => { isRefreshing.value = false; }, 500);
-            }
-
-            async function createProject() {
-                if (!newProjectTitle.value.trim()) return;
-                const { data } = await client.from('projects').insert({ name: newProjectTitle.value }).select().single();
-                if (data) enterProject(data.id);
-            }
-
-            function startEditProject(p) {
-                editingProjectId.value = p.id;
-                editingProjectName.value = p.name;
-                editingProjectDate.value = formatDate(p.created_at);
-            }
-
-            async function saveProjectName(id) {
-                await client.from('projects').update({ 
-                    name: editingProjectName.value, 
-                    created_at: editingProjectDate.value 
-                }).eq('id', id);
-                editingProjectId.value = null;
-                fetchProjects();
-            }
-
-            async function deleteProject(id) {
-                if (confirm('確定要刪除整個專案嗎？')) {
-                    await client.from('projects').delete().eq('id', id);
-                    fetchProjects();
-                }
-            }
+            async function createProject() { if (!newProjectTitle.value.trim()) return; const { data } = await client.from('projects').insert({ name: newProjectTitle.value }).select().single(); enterProject(data.id); }
+            function startEditProject(p) { editingProjectId.value = p.id; editingProjectName.value = p.name; editingProjectDate.value = formatDate(p.created_at); }
+            async function saveProjectName(id) { await client.from('projects').update({ name: editingProjectName.value, created_at: editingProjectDate.value }).eq('id', id); editingProjectId.value = null; fetchProjects(); }
+            async function deleteProject(id) { if (confirm('確定刪除？')) { await client.from('projects').delete().eq('id', id); fetchProjects(); } }
 
             async function addMember() {
-                await client.from('members').insert({ 
-                    project_id: currentProjectId.value, 
-                    name: `成員${members.value.length + 1}` 
-                });
-                await loadData();
+                const existNum = members.value.map(m => { const res = m.name.match(/^成員(\d+)$/); return res ? Number(res[1]) : null; }).filter(n => n !== null);
+                let i = 1; while (existNum.includes(i)) i++;
+                await client.from('members').insert({ project_id: currentProjectId.value, name: `成員${i}` }); await loadData();
             }
+            async function updateMember(m) { await client.from('members').update({name: m.name}).eq('id', m.id); }
 
-            async function updateMember(m) {
-                await client.from('members').update({ name: m.name }).eq('id', m.id);
-            }
+            async function deleteMember(id) { 
+                if (confirm('確定刪除成員？該成員在花費中的紀錄也會被清理。')) { 
+                    const sid = String(id);
+                    const updates = [];
 
-            async function deleteMember(id) {
-                if (confirm('確定要刪除此成員嗎？')) {
+                    expenses.value.forEach(exp => {
+                        let p = { ...exp.payers };
+                        let s = { ...exp.split_details };
+                        let dirty = false;
+
+                        if (p[sid] !== undefined || p[id] !== undefined) { delete p[sid]; delete p[id]; dirty = true; }
+                        if (s[sid] !== undefined || s[id] !== undefined) { delete s[sid]; delete s[id]; dirty = true; }
+                        if (!dirty) return;
+
+                        const sVals = Object.values(s).map(Number);
+                        if (sVals.length > 1 && sVals.every(v => Math.abs(v - sVals[0]) < 0.01)) {
+                            const rIds = Object.keys(s); const cents = Math.round(Number(exp.amount) * 100);
+                            const avg = Math.floor(cents / rIds.length);
+                            rIds.forEach(mid => s[mid] = avg / 100);
+                            s[rIds[0]] = (avg + (cents % rIds.length)) / 100;
+                        }
+                        const pVals = Object.values(p).map(Number);
+                        if (pVals.length > 1 && pVals.every(v => Math.abs(v - pVals[0]) < 0.01)) {
+                            const rIds = Object.keys(p); const cents = Math.round(Number(exp.amount) * 100);
+                            const avg = Math.floor(cents / rIds.length);
+                            rIds.forEach(mid => p[mid] = avg / 100);
+                            p[rIds[0]] = (avg + (cents % rIds.length)) / 100;
+                        }
+                        updates.push(client.from('expenses').update({ payers: p, split_details: s }).eq('id', exp.id));
+                    });
+                    if (updates.length > 0) await Promise.all(updates);
                     await client.from('members').delete().eq('id', id);
                     await loadData();
-                }
+                } 
             }
 
             function validateBeforeSettlement() {
                 invalidExpenseIds.value = [];
                 expenses.value.forEach(exp => {
-                    const totalCents = Math.round(Number(exp.amount) * 100);
-                    const paySum = Object.values(exp.payers || {}).reduce((a, b) => a + Math.round(Number(b) * 100), 0);
-                    const splitSum = Object.values(exp.split_details || {}).reduce((a, b) => a + Math.round(Number(b) * 100), 0);
-                    if (Math.abs(totalCents - paySum) > 1 || Math.abs(totalCents - splitSum) > 1) {
+                    const total = Math.round(Number(exp.amount) * 100);
+                    const paySum = Object.values(exp.payers || {}).reduce((a,b)=> a + Math.round(Number(b)*100), 0);
+                    const splitSum = Object.values(exp.split_details || {}).reduce((a,b)=> a + Math.round(Number(b)*100), 0);
+                    if (Math.abs(total - paySum) > 1 || Math.abs(total - splitSum) > 1) {
                         invalidExpenseIds.value.push(exp.id);
                     }
                 });
@@ -713,216 +419,80 @@
 
             function handleSettlementClick() {
                 if (!validateBeforeSettlement()) {
-                    alert('部分花費金額未正確平衡，請修正紅色標記的項目');
-                    return;
+                    alert('有花費金額尚未調整正確，請先修正標示紅色項目'); return;
                 }
                 showSettlement.value = true;
             }
 
             function openAddExpense() {
                 isEditing.value = false;
-                form.value = {
-                    title: '',
-                    amount: '',
-                    date: new Date().toISOString().split('T')[0],
-                    category: '',
-                    pMode: 'equal',
-                    pList: members.value.length > 0 ? [members.value[0].id] : [],
-                    manualP: {},
-                    sMode: 'equal',
-                    sList: members.value.map(m => m.id),
-                    manualS: {}
-                };
+                form.value = { title: '', amount: '', date: new Date().toISOString().split('T')[0], category: '', pMode: 'equal', pList: members.value.length > 0 ? [members.value[0].id] : [], manualP: {}, sMode: 'equal', sList: members.value.map(m=>m.id), manualS: {} };
+                members.value.forEach(m => { form.value.manualP[m.id] = 0; form.value.manualS[m.id] = 0; });
                 showModal.value = true;
             }
 
             function openEditExpense(e) {
-                isEditing.value = true;
-                editingExpenseId.value = e.id;
+                isEditing.value = true; editingExpenseId.value = e.id;
+                const activePayers = Object.keys(e.payers).filter(id => Number(e.payers[id]) > 0.01).map(Number);
+                const activeSplitters = Object.keys(e.split_details).filter(id => Number(e.split_details[id]) > 0.01).map(Number);
+                const pVals = activePayers.map(id => Number(e.payers[id]));
+                const sVals = activeSplitters.map(id => Number(e.split_details[id]));
+                const isPManual = pVals.length > 1 ? !pVals.every(v => Math.abs(v - pVals[0]) < 0.2) : false;
+                const isSManual = sVals.length > 1 ? !sVals.every(v => Math.abs(v - sVals[0]) < 0.2) : false;
                 form.value = {
-                    title: e.title,
-                    amount: e.amount,
-                    date: e.date,
-                    category: e.category || '',
-                    pMode: 'equal',
-                    pList: Object.keys(e.payers).map(Number),
-                    manualP: { ...e.payers },
-                    sMode: 'equal',
-                    sList: Object.keys(e.split_details).map(Number),
-                    manualS: { ...e.split_details }
+                    title: e.title, amount: e.amount, date: e.date, category: e.category || '',
+                    pMode: isPManual ? 'manual' : 'equal', pList: activePayers, manualP: {...e.payers},
+                    sMode: isSManual ? 'manual' : 'equal', sList: activeSplitters, manualS: {...e.split_details}
                 };
+                members.value.forEach(m => {
+                    if (form.value.manualP[m.id] === undefined) form.value.manualP[m.id] = 0;
+                    if (form.value.manualS[m.id] === undefined) form.value.manualS[m.id] = 0;
+                });
                 showModal.value = true;
             }
 
-            const isValid = computed(() => {
-                return form.value.title && Number(form.value.amount) > 0;
-            });
+            const payManualDiff = computed(() => Number(form.value.amount) - Object.values(form.value.manualP).reduce((a,b)=>a+(Number(b)||0), 0));
+            const splitManualDiff = computed(() => Number(form.value.amount) - Object.values(form.value.manualS).reduce((a,b)=>a+(Number(b)||0), 0));
+            const isValid = computed(() => form.value.title && Number(form.value.amount) > 0 && (form.value.pMode === 'manual' ? Math.abs(payManualDiff.value) < 1 : form.value.pList.length > 0) && (form.value.sMode === 'manual' ? Math.abs(splitManualDiff.value) < 1 : form.value.sList.length > 0));
 
             async function submitExpense() {
-                let p = {}, s = {};
-                const totalCents = Math.round(form.value.amount * 100);
-
-                if (form.value.pMode === 'equal') {
-                    const avg = Math.floor(totalCents / form.value.pList.length);
-                    form.value.pList.forEach(id => p[id] = avg / 100);
-                    p[form.value.pList[0]] = (avg + (totalCents % form.value.pList.length)) / 100;
-                } else {
-                    p = form.value.manualP;
-                }
-
-                if (form.value.sMode === 'equal') {
-                    const avg = Math.floor(totalCents / form.value.sList.length);
-                    form.value.sList.forEach(id => s[id] = avg / 100);
-                    s[form.value.sList[0]] = (avg + (totalCents % form.value.sList.length)) / 100;
-                } else {
-                    s = form.value.manualS;
-                }
-
-                const payload = {
-                    project_id: currentProjectId.value,
-                    title: form.value.title,
-                    amount: form.value.amount,
-                    date: form.value.date,
-                    category: form.value.category,
-                    payers: p,
-                    split_details: s
-                };
-
-                if (isEditing.value) {
-                    await client.from('expenses').update(payload).eq('id', editingExpenseId.value);
-                } else {
-                    await client.from('expenses').insert(payload);
-                }
-                showModal.value = false;
-                loadData();
+                let p = {}, s = {}; const totalCents = Math.round(form.value.amount * 100);
+                if (form.value.pMode === 'equal') { const avg = Math.floor(totalCents / form.value.pList.length); form.value.pList.forEach(id => p[id] = avg / 100); p[form.value.pList[0]] = (avg + (totalCents % form.value.pList.length)) / 100; } else p = form.value.manualP;
+                if (form.value.sMode === 'equal') { const avg = Math.floor(totalCents / form.value.sList.length); form.value.sList.forEach(id => s[id] = avg / 100); s[form.value.sList[0]] = (avg + (totalCents % form.value.sList.length)) / 100; } else s = form.value.manualS;
+                const payload = { project_id: currentProjectId.value, title: form.value.title, amount: form.value.amount, date: form.value.date, category: form.value.category, payers: p, split_details: s };
+                if(isEditing.value) await client.from('expenses').update(payload).eq('id', editingExpenseId.value); else await client.from('expenses').insert(payload);
+                showModal.value = false; loadData();
             }
-
-            async function deleteExpense() {
-                if (confirm('確定要刪除這筆花費嗎？')) {
-                    await client.from('expenses').delete().eq('id', editingExpenseId.value);
-                    showModal.value = false;
-                    loadData();
-                }
-            }
+            async function deleteExpense() { if (confirm('確定刪除花費？')) { await client.from('expenses').delete().eq('id', editingExpenseId.value); showModal.value=false; loadData(); } }
 
             const settlement = computed(() => {
-                let bal = {};
-                members.value.forEach(m => bal[m.id] = 0);
+                let bal = {}; members.value.forEach(m => bal[m.id]=0);
                 expenses.value.forEach(e => {
-                    for (let id in e.payers) {
-                        if (bal[id] !== undefined) bal[id] += Math.round(Number(e.payers[id]) * 100);
-                    }
-                    for (let id in e.split_details) {
-                        if (bal[id] !== undefined) bal[id] -= Math.round(Number(e.split_details[id]) * 100);
-                    }
+                    for(let id in e.payers) if(bal[id] !== undefined) bal[id] += Math.round(Number(e.payers[id]) * 100);
+                    for(let id in e.split_details) if(bal[id] !== undefined) bal[id] -= Math.round(Number(e.split_details[id]) * 100);
                 });
-
-                const details = members.value.map(m => ({
-                    id: m.id,
-                    name: m.name,
-                    net: bal[m.id] / 100
-                }));
-
-                let ts = [];
-                let ds = details.filter(x => x.net < -0.01).sort((a, b) => a.net - b.net);
-                let cs = details.filter(x => x.net > 0.01).sort((a, b) => b.net - a.net);
-
-                let i = 0, j = 0;
-                while (i < ds.length && j < cs.length) {
+                const details = members.value.map(m => ({ id: m.id, name: m.name, net: bal[m.id]/100 }));
+                let ts = [], ds = details.filter(x=>x.net < -0.01).sort((a,b)=>a.net-b.net), cs = details.filter(x=>x.net > 0.01).sort((a,b)=>b.net-a.net);
+                let i=0, j=0; while(i < ds.length && j < cs.length) {
                     let amt = Math.min(Math.abs(ds[i].net), cs[j].net);
-                    ts.push({ from: ds[i].name, to: cs[j].name, amount: amt });
-                    ds[i].net += amt;
-                    cs[j].net -= amt;
-                    if (Math.abs(ds[i].net) < 0.01) i++;
-                    if (cs[j].net < 0.01) j++;
+                    ts.push({from: ds[i].name, to: cs[j].name, amount: amt});
+                    ds[i].net += amt; cs[j].net -= amt; if(Math.abs(ds[i].net)<0.01) i++; if(cs[j].net<0.01) j++;
                 }
                 return { transfers: ts };
             });
 
-            function pressPin(n) {
-                if (pin.value.length < 4) pin.value += n;
-                if (pin.value.length === 4) handlePinComplete();
-            }
+            function pressPin(n) { if (pin.value.length < 4) pin.value += n; if (pin.value.length === 4) handlePinComplete(); }
+            async function handlePinComplete() { if (isLocked.value) { if (pin.value === adminPass.value) { isLocked.value = false; currentProjectId.value = null; pin.value = ''; fetchProjects(); } else { alert('PIN 錯誤'); pin.value = ''; } } else if (showPassSettings.value) { await client.from('app_settings').upsert({ id: 'admin_password', value: pin.value }); adminPass.value = pin.value; showPassSettings.value = false; pin.value = ''; } }
+            const pinContext = computed(() => isLocked.value ? {title:'管理員解鎖'} : {title:'設定新密碼'});
+            const backToHome = () => { if (adminPass.value) { isLocked.value = true; pin.value = ''; } else { currentProjectId.value = null; fetchProjects(); } };
+            const closePinPad = () => { isLocked.value = false; showPassSettings.value = false; pin.value = ''; };
+            const triggerPassSetup = () => { pin.value = ''; showPassSettings.value = true; };
+            function toggleMemberPay(id) { const i = form.value.pList.indexOf(id); if (i > -1) form.value.pList.splice(i, 1); else form.value.pList.push(id); }
+            function toggleMemberSplit(id) { const i = form.value.sList.indexOf(id); if (i > -1) form.value.sList.splice(i, 1); else form.value.sList.push(id); }
+            function toggleAllSplit() { if (form.value.sList.length === members.value.length) form.value.sList = []; else form.value.sList = members.value.map(m => m.id); }
+            function copyLink() { navigator.clipboard.writeText(window.location.href); showToast.value = true; setTimeout(() => showToast.value = false, 2000); }
 
-            async function handlePinComplete() {
-                if (isLocked.value) {
-                    if (pin.value === adminPass.value) {
-                        isLocked.value = false;
-                        currentProjectId.value = null;
-                        pin.value = '';
-                        fetchProjects();
-                    } else {
-                        alert('PIN 錯誤');
-                        pin.value = '';
-                    }
-                } else if (showPassSettings.value) {
-                    await client.from('app_settings').upsert({ id: 'admin_password', value: pin.value });
-                    adminPass.value = pin.value;
-                    showPassSettings.value = false;
-                    pin.value = '';
-                }
-            }
-
-            const pinContext = computed(() => {
-                return isLocked.value ? { title: '管理員解鎖' } : { title: '設定新密碼' };
-            });
-
-            const backToHome = () => {
-                if (adminPass.value) {
-                    isLocked.value = true;
-                    pin.value = '';
-                } else {
-                    currentProjectId.value = null;
-                    fetchProjects();
-                }
-            };
-
-            const closePinPad = () => {
-                isLocked.value = false;
-                showPassSettings.value = false;
-                pin.value = '';
-            };
-
-            const triggerPassSetup = () => {
-                pin.value = '';
-                showPassSettings.value = true;
-            };
-
-            function toggleMemberPay(id) {
-                const idx = form.value.pList.indexOf(id);
-                if (idx > -1) form.value.pList.splice(idx, 1);
-                else form.value.pList.push(id);
-            }
-
-            function toggleMemberSplit(id) {
-                const idx = form.value.sList.indexOf(id);
-                if (idx > -1) form.value.sList.splice(idx, 1);
-                else form.value.sList.push(id);
-            }
-
-            function toggleAllSplit() {
-                if (form.value.sList.length === members.value.length) form.value.sList = [];
-                else form.value.sList = members.value.map(m => m.id);
-            }
-
-            function copyLink() {
-                navigator.clipboard.writeText(window.location.href);
-                showToast.value = true;
-                setTimeout(() => { showToast.value = false; }, 2000);
-            }
-
-            return {
-                projects, currentProjectId, projectMeta, members, expenses, showModal, showSettlement,
-                isEditing, form, isValid, totalExpense, memberStats, settlement, isLocked, pin,
-                pinContext, showPassSettings, newProjectTitle, showToast, isRefreshing,
-                editingProjectId, editingProjectName, editingProjectDate, formatDate,
-                getPayerDisplay, getSplitCount, fetchProjects, createProject, enterProject,
-                loadData, manualRefresh, startEditProject, saveProjectName, deleteProject,
-                addMember, updateMember, deleteMember, openAddExpense, openEditExpense,
-                toggleMemberPay, toggleMemberSplit, toggleAllSplit, submitExpense, deleteExpense,
-                pressPin, handlePinComplete, backToHome, closePinPad, triggerPassSetup, copyLink,
-                invalidExpenseIds, handleSettlementClick, categoryStats
-            };
+            return { projects, currentProjectId, projectMeta, members, expenses, showModal, showSettlement, isEditing, form, isValid, totalExpense, memberStats, settlement, isLocked, pin, pinContext, showPassSettings, newProjectTitle, showToast, isRefreshing, editingProjectId, editingProjectName, editingProjectDate, formatDate, getPayerDisplay, getSplitCount, fetchProjects, createProject, enterProject, loadData, manualRefresh, startEditProject, saveProjectName, deleteProject, addMember, updateMember, deleteMember, openAddExpense, openEditExpense, toggleMemberPay, toggleMemberSplit, toggleAllSplit, submitExpense, deleteExpense, pressPin, handlePinComplete, backToHome, closePinPad, triggerPassSetup, copyLink, payManualDiff, splitManualDiff, invalidExpenseIds, handleSettlementClick, categoryStats };
         }
     }).mount('#app');
 </script>
