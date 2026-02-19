@@ -103,7 +103,7 @@
 
         <main class="flex-1 overflow-y-auto pt-2 pb-36 px-1">
             <div class="mb-10 w-full flex flex-col items-center">
-                <h3 class="text-sm text-blue-300 tracking-[0.3em] uppercase f-medium mb-6 text-center w-full">個人支出</h3>
+                <h3 class="text-sm text-blue-300 tracking-[0.3em] uppercase f-medium mb-6 text-center">個人支出</h3>
                 <div class="space-y-3 w-full max-w-[240px] bg-white/5 p-5 rounded-[24px] border border-white/10">
                     <div v-for="m in members" :key="m.id" class="flex justify-between text-sm"><span class="f-medium text-blue-300">{{m.name}}</span><span class="f-medium text-white">${{ (memberStats[m.id] || 0).toLocaleString() }}</span></div>
                 </div>
@@ -204,10 +204,10 @@
 
         <div class="mt-20 pb-12 flex flex-col items-center">
             <h2 class="text-3xl f-light text-white mb-12 w-full text-left">分類統計</h2>
-            <div class="w-full max-w-[33%] mx-auto relative">
+            <div class="w-full max-w-[50%] mx-auto relative">
                 <canvas id="categoryChart"></canvas>
             </div>
-            <div class="mt-4 w-full max-w-[33%] mx-auto" id="categoryList"></div>
+            <div class="mt-4 max-w-[50%] mx-auto w-full" id="categoryList"></div>
         </div>
     </div>
 </div>
@@ -295,7 +295,7 @@
                             }]
                         },
                         options: {
-                            cutout: '35%', // 圓餅加厚
+                            cutout: '30%', // 圓餅加厚
                             layout: { padding: 10 },
                             animation: { animateRotate: true, duration: 1000 },
                             plugins: {
@@ -308,7 +308,7 @@
                         plugins: [{
                             id: 'centerText',
                             afterDraw(chart) {
-                                const { ctx } = chart;
+                                const { ctx, chartArea } = chart;
                                 ctx.save();
                                 // 外圍淡光圈
                                 ctx.shadowBlur = 12;
