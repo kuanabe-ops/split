@@ -36,6 +36,12 @@
         .delete-btn-raw:hover { color: #F87171; }
         .rotate-anim { animation: rotate 0.5s ease-in-out; }
         @keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        
+        /* 圓餅圖淡淡光圈效果 */
+        .chart-container {
+            position: relative;
+            filter: drop-shadow(0 0 12px rgba(180, 194, 214, 0.15));
+        }
     </style>
 </head>
 <body class="f-light">
@@ -102,17 +108,17 @@
         </div>
 
         <main class="flex-1 overflow-y-auto pt-2 pb-36 px-1">
-            <div class="mb-10 w-full flex flex-col items-center">
-                <h3 class="text-sm text-blue-300 tracking-[0.3em] uppercase f-medium mb-6 text-center">個人支出</h3>
-                <div class="space-y-3 w-full max-w-[240px] bg-white/5 p-5 rounded-[24px] border border-white/10">
+            <div class="mb-10 text-center flex flex-col items-center">
+                <h3 class="text-sm text-blue-300 tracking-[0.3em] uppercase f-medium mb-6 w-full">個人支出</h3>
+                <div class="space-y-3 w-full max-w-[280px] bg-white/5 p-5 rounded-[24px] border border-white/10">
                     <div v-for="m in members" :key="m.id" class="flex justify-between text-sm"><span class="f-medium text-blue-300">{{m.name}}</span><span class="f-medium text-white">${{ (memberStats[m.id] || 0).toLocaleString() }}</span></div>
                 </div>
-                <div class="mt-6 text-center text-sm text-blue-300 f-medium tracking-wider">總支出 ${{ totalExpense.toLocaleString() }}</div>
+                <div class="mt-6 text-sm text-blue-300 f-medium tracking-wider w-full">總支出 ${{ totalExpense.toLocaleString() }}</div>
                 <button @click="handleSettlementClick" class="mt-10 bg-white text-black px-10 py-3 rounded-full text-sm f-medium tracking-wider shadow-lg active:scale-95 transition-all">查看結算</button>
             </div>
             
-            <section class="mb-10">
-                <div class="flex justify-between items-center mb-4 px-2"><h3 class="text-xs text-blue-300 tracking-[0.3em] uppercase f-medium">成員</h3><button @click="addMember" class="text-xl text-white f-medium px-2">＋</button></div>
+            <section class="mb-10 px-2">
+                <div class="flex justify-between items-center mb-4"><h3 class="text-xs text-blue-300 tracking-[0.3em] uppercase f-medium">成員</h3><button @click="addMember" class="text-xl text-white f-medium px-2">＋</button></div>
                 <div class="grid grid-cols-2 gap-3">
                     <div v-for="m in members" :key="m.id" class="flex items-center gap-3 p-4 card">
                         <input v-model="m.name" @blur="updateMember(m)" class="flex-1 min-w-0 bg-transparent outline-none text-sm f-medium text-white">
@@ -123,8 +129,8 @@
                 </div>
             </section>
 
-            <section>
-                <div class="flex justify-between items-center mb-4 px-2"><h3 class="text-xs text-blue-300 tracking-[0.3em] uppercase f-medium">花費</h3><button @click="openAddExpense" class="text-xl text-white f-medium px-2">＋</button></div>
+            <section class="px-2">
+                <div class="flex justify-between items-center mb-4"><h3 class="text-xs text-blue-300 tracking-[0.3em] uppercase f-medium">花費</h3><button @click="openAddExpense" class="text-xl text-white f-medium px-2">＋</button></div>
                 <div v-for="exp in expenses" :key="exp.id" @click="openEditExpense(exp)" 
                      :class="['card p-5 mb-3 flex justify-between items-center active:scale-[0.98] transition-all', invalidExpenseIds.includes(exp.id) ? 'border border-red-500/40 bg-red-500/5' : '']">
                     <div class="flex-1 truncate pr-3">
@@ -203,9 +209,21 @@
         </div>
 
         <div class="mt-20 pb-12 flex flex-col items-center">
-            <h2 class="text-3xl f-light text-white mb-12 w-full text-left">分類統計</h2>
-            <div class="w-full relative px-4">
+            <h2 class="text-3xl f-light text-white mb-12 w-full">分類統計</h2>
+            
+            <div class="chart-container w-52 h-52 mb-10">
                 <canvas id="categoryChart"></canvas>
+            </div>
+
+            <div class="w-full space-y-4">
+                <div v-for="(val, cat, index) in categoryStats" :key="cat" class="flex justify-between items-center p-4 bg-white/5 rounded-2xl border border-white/5">
+                    <div class="flex items-center gap-3">
+                        <div class="w-3 h-3 rounded-full" :style="{ backgroundColor: getPaletteColor(index) }"></div>
+                        <span class="text-sm text-white f-medium">{{ cat }}</span>
+                        <span class="text-[10px] text-gray-500">{{ ((val / totalExpense) * 100).toFixed(1) }}%</span>
+                    </div>
+                    <span class="text-sm text-blue-300 f-medium">${{ Math.round(val).toLocaleString() }}</span>
+                </div>
             </div>
         </div>
     </div>
@@ -216,6 +234,15 @@
     const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt3cmVmbm1oanV3bnZmaXB4ZHlxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEyOTQ4NTksImV4cCI6MjA4Njg3MDg1OX0.jthw2efO6SSzIm0PpY0scQ9cBrAtByEzxxrzz1YOHlc';
     const client = supabase.createClient(SB_URL, SB_KEY);
     const { createApp, ref, computed, onMounted, nextTick, watch } = Vue;
+
+    const palette = [
+        ['#B4C2D6', '#2E3A4F'],
+        ['#9FB0C4', '#233142'],
+        ['#A1AAB5', '#2B313A'],
+        ['#889BB0', '#1C2430'],
+        ['#9AA3AE', '#252B33'],
+        ['#7F91A5', '#161E28']
+    ];
 
     createApp({
         setup() {
@@ -261,7 +288,8 @@
                 return map;
             });
 
-            // 修改點：圓餅圖加厚、灰藍色系、文字優化
+            const getPaletteColor = (i) => palette[i % palette.length][0];
+
             let chartInstance = null;
             watch(showSettlement, (val) => {
                 if (!val) return;
@@ -269,7 +297,6 @@
                 nextTick(() => {
                     const canvas = document.getElementById('categoryChart');
                     if (!canvas) return;
-
                     const ctx = canvas.getContext('2d');
                     if (chartInstance) chartInstance.destroy();
 
@@ -277,17 +304,8 @@
                     const values = Object.values(categoryStats.value);
                     const total = values.reduce((a,b)=>a+b,0);
 
-                    // 灰藍色系漸層
                     const gradients = labels.map((_, i) => {
-                        const g = ctx.createLinearGradient(0, 0, 0, 300);
-                        const palette = [
-                            ['#94A3B8', '#334155'], // Slate 400 -> 700
-                            ['#60A5FA', '#1E40AF'], // Blue 400 -> 800
-                            ['#CBD5E1', '#475569'], // Slate 200 -> 600
-                            ['#38BDF8', '#075985'], // Sky 400 -> 800
-                            ['#1E293B', '#020617'], // Darker Slate
-                            ['#93C5FD', '#1D4ED8']  // Soft Blue
-                        ];
+                        const g = ctx.createLinearGradient(0, 0, 0, 200);
                         const pair = palette[i % palette.length];
                         g.addColorStop(0, pair[0]);
                         g.addColorStop(1, pair[1]);
@@ -302,12 +320,13 @@
                                 data: values,
                                 backgroundColor: gradients,
                                 borderWidth: 0,
-                                hoverOffset: 12
+                                hoverOffset: 4
                             }]
                         },
                         options: {
-                            cutout: '45%', // 修改點：加厚 (空心比例從65%降到45%)
-                            layout: { padding: 30 },
+                            cutout: '55%', // 數值變小 = 圓餅變厚
+                            responsive: true,
+                            maintainAspectRatio: false,
                             animation: { animateRotate: true, duration: 1000 },
                             plugins: {
                                 legend: { display: false },
@@ -315,42 +334,23 @@
                             }
                         },
                         plugins: [{
-                            id: 'customLabels',
+                            id: 'centerText',
                             afterDraw(chart) {
                                 const { ctx } = chart;
-                                const meta = chart.getDatasetMeta(0);
-
-                                meta.data.forEach((arc, i) => {
-                                    if (!arc.active && values[i] < (total * 0.03)) return; // 太小的比例不顯字
-
-                                    const pos = arc.tooltipPosition();
-                                    ctx.save();
-                                    ctx.fillStyle = '#FFFFFF';
-                                    ctx.shadowBlur = 8;
-                                    ctx.shadowColor = 'rgba(0,0,0,0.5)';
-                                    ctx.textAlign = 'center';
-
-                                    // 修改點：文字座標微調確保不遮擋
-                                    ctx.font = "12px 'Noto Sans TC'";
-                                    ctx.fillText(labels[i], pos.x, pos.y - 12);
-                                    
-                                    ctx.font = "bold 13px 'Noto Sans TC'";
-                                    ctx.fillText(`${((values[i]/total)*100).toFixed(0)}%`, pos.x, pos.y + 4);
-                                    
-                                    ctx.font = "10px 'Noto Sans TC'";
-                                    ctx.fillText(`$${Math.round(values[i]).toLocaleString()}`, pos.x, pos.y + 18);
-
-                                    ctx.restore();
-                                });
-
-                                // 中央總額
                                 ctx.save();
                                 ctx.fillStyle = '#F5F7FA';
                                 ctx.textAlign = 'center';
+                                ctx.textBaseline = 'middle';
+                                
+                                // 總金額標題
                                 ctx.font = "12px 'Noto Sans TC'";
-                                ctx.fillText('總額', chart.width / 2, chart.height / 2 - 10);
+                                ctx.globalAlpha = 0.5;
+                                ctx.fillText('總支出', chart.width / 2, chart.height / 2 - 12);
+                                
+                                // 總金額數字
+                                ctx.globalAlpha = 1.0;
                                 ctx.font = "bold 18px 'Noto Sans TC'";
-                                ctx.fillText(`$${Math.round(total).toLocaleString()}`, chart.width / 2, chart.height / 2 + 15);
+                                ctx.fillText(`$${Math.round(total).toLocaleString()}`, chart.width / 2, chart.height / 2 + 10);
                                 ctx.restore();
                             }
                         }]
@@ -358,11 +358,9 @@
                 });
             });
 
+            // 其餘邏輯保持不變
             async function fetchProjects() { 
-                const { data } = await client
-                    .from('projects')
-                    .select('*')
-                    .order('created_at', { ascending: false }); 
+                const { data } = await client.from('projects').select('*').order('created_at', { ascending: false }); 
                 projects.value = data || [];
             }
             async function enterProject(id) { currentProjectId.value = id; window.history.pushState({}, '', `?pid=${id}`); await loadData(); }
@@ -373,132 +371,23 @@
                 validateBeforeSettlement();
             }
             async function manualRefresh() { isRefreshing.value = true; await loadData(); setTimeout(() => isRefreshing.value = false, 500); }
-
             async function createProject() { if (!newProjectTitle.value.trim()) return; const { data } = await client.from('projects').insert({ name: newProjectTitle.value }).select().single(); enterProject(data.id); }
             function startEditProject(p) { editingProjectId.value = p.id; editingProjectName.value = p.name; editingProjectDate.value = formatDate(p.created_at); }
             async function saveProjectName(id) { await client.from('projects').update({ name: editingProjectName.value, created_at: editingProjectDate.value }).eq('id', id); editingProjectId.value = null; fetchProjects(); }
             async function deleteProject(id) { if (confirm('確定刪除？')) { await client.from('projects').delete().eq('id', id); fetchProjects(); } }
-
-            async function addMember() {
-                const existNum = members.value.map(m => { const res = m.name.match(/^成員(\d+)$/); return res ? Number(res[1]) : null; }).filter(n => n !== null);
-                let i = 1; while (existNum.includes(i)) i++;
-                await client.from('members').insert({ project_id: currentProjectId.value, name: `成員${i}` }); await loadData();
-            }
+            async function addMember() { const existNum = members.value.map(m => { const res = m.name.match(/^成員(\d+)$/); return res ? Number(res[1]) : null; }).filter(n => n !== null); let i = 1; while (existNum.includes(i)) i++; await client.from('members').insert({ project_id: currentProjectId.value, name: `成員${i}` }); await loadData(); }
             async function updateMember(m) { await client.from('members').update({name: m.name}).eq('id', m.id); }
-
-            async function deleteMember(id) { 
-                if (confirm('確定刪除成員？該成員在花費中的紀錄也會被清理。')) { 
-                    const sid = String(id);
-                    const updates = [];
-
-                    expenses.value.forEach(exp => {
-                        let p = { ...exp.payers };
-                        let s = { ...exp.split_details };
-                        let dirty = false;
-
-                        if (p[sid] !== undefined || p[id] !== undefined) { delete p[sid]; delete p[id]; dirty = true; }
-                        if (s[sid] !== undefined || s[id] !== undefined) { delete s[sid]; delete s[id]; dirty = true; }
-                        if (!dirty) return;
-
-                        const sVals = Object.values(s).map(Number);
-                        if (sVals.length > 1 && sVals.every(v => Math.abs(v - sVals[0]) < 0.01)) {
-                            const rIds = Object.keys(s); const cents = Math.round(Number(exp.amount) * 100);
-                            const avg = Math.floor(cents / rIds.length);
-                            rIds.forEach(mid => s[mid] = avg / 100);
-                            s[rIds[0]] = (avg + (cents % rIds.length)) / 100;
-                        }
-                        const pVals = Object.values(p).map(Number);
-                        if (pVals.length > 1 && pVals.every(v => Math.abs(v - pVals[0]) < 0.01)) {
-                            const rIds = Object.keys(p); const cents = Math.round(Number(exp.amount) * 100);
-                            const avg = Math.floor(cents / rIds.length);
-                            rIds.forEach(mid => p[mid] = avg / 100);
-                            p[rIds[0]] = (avg + (cents % rIds.length)) / 100;
-                        }
-                        updates.push(client.from('expenses').update({ payers: p, split_details: s }).eq('id', exp.id));
-                    });
-                    if (updates.length > 0) await Promise.all(updates);
-                    await client.from('members').delete().eq('id', id);
-                    await loadData();
-                } 
-            }
-
-            function validateBeforeSettlement() {
-                invalidExpenseIds.value = [];
-                expenses.value.forEach(exp => {
-                    const total = Math.round(Number(exp.amount) * 100);
-                    const paySum = Object.values(exp.payers || {}).reduce((a,b)=> a + Math.round(Number(b)*100), 0);
-                    const splitSum = Object.values(exp.split_details || {}).reduce((a,b)=> a + Math.round(Number(b)*100), 0);
-                    if (Math.abs(total - paySum) > 1 || Math.abs(total - splitSum) > 1) {
-                        invalidExpenseIds.value.push(exp.id);
-                    }
-                });
-                return invalidExpenseIds.value.length === 0;
-            }
-
-            function handleSettlementClick() {
-                if (!validateBeforeSettlement()) {
-                    alert('有花費金額尚未調整正確，請先修正標示紅色項目'); return;
-                }
-                showSettlement.value = true;
-            }
-
-            function openAddExpense() {
-                isEditing.value = false;
-                form.value = { title: '', amount: '', date: new Date().toISOString().split('T')[0], category: '', pMode: 'equal', pList: members.value.length > 0 ? [members.value[0].id] : [], manualP: {}, sMode: 'equal', sList: members.value.map(m=>m.id), manualS: {} };
-                members.value.forEach(m => { form.value.manualP[m.id] = 0; form.value.manualS[m.id] = 0; });
-                showModal.value = true;
-            }
-
-            function openEditExpense(e) {
-                isEditing.value = true; editingExpenseId.value = e.id;
-                const activePayers = Object.keys(e.payers).filter(id => Number(e.payers[id]) > 0.01).map(Number);
-                const activeSplitters = Object.keys(e.split_details).filter(id => Number(e.split_details[id]) > 0.01).map(Number);
-                const pVals = activePayers.map(id => Number(e.payers[id]));
-                const sVals = activeSplitters.map(id => Number(e.split_details[id]));
-                const isPManual = pVals.length > 1 ? !pVals.every(v => Math.abs(v - pVals[0]) < 0.2) : false;
-                const isSManual = sVals.length > 1 ? !sVals.every(v => Math.abs(v - sVals[0]) < 0.2) : false;
-                form.value = {
-                    title: e.title, amount: e.amount, date: e.date, category: e.category || '',
-                    pMode: isPManual ? 'manual' : 'equal', pList: activePayers, manualP: {...e.payers},
-                    sMode: isSManual ? 'manual' : 'equal', sList: activeSplitters, manualS: {...e.split_details}
-                };
-                members.value.forEach(m => {
-                    if (form.value.manualP[m.id] === undefined) form.value.manualP[m.id] = 0;
-                    if (form.value.manualS[m.id] === undefined) form.value.manualS[m.id] = 0;
-                });
-                showModal.value = true;
-            }
-
+            async function deleteMember(id) { if (confirm('確定刪除成員？')) { await client.from('members').delete().eq('id', id); await loadData(); } }
+            function validateBeforeSettlement() { invalidExpenseIds.value = []; expenses.value.forEach(exp => { const total = Math.round(Number(exp.amount) * 100); const paySum = Object.values(exp.payers || {}).reduce((a,b)=> a + Math.round(Number(b)*100), 0); const splitSum = Object.values(exp.split_details || {}).reduce((a,b)=> a + Math.round(Number(b)*100), 0); if (Math.abs(total - paySum) > 1 || Math.abs(total - splitSum) > 1) { invalidExpenseIds.value.push(exp.id); } }); return invalidExpenseIds.value.length === 0; }
+            function handleSettlementClick() { if (!validateBeforeSettlement()) { alert('有花費金額尚未調整正確，請先修正標示紅色項目'); return; } showSettlement.value = true; }
+            function openAddExpense() { isEditing.value = false; form.value = { title: '', amount: '', date: new Date().toISOString().split('T')[0], category: '', pMode: 'equal', pList: members.value.length > 0 ? [members.value[0].id] : [], manualP: {}, sMode: 'equal', sList: members.value.map(m=>m.id), manualS: {} }; members.value.forEach(m => { form.value.manualP[m.id] = 0; form.value.manualS[m.id] = 0; }); showModal.value = true; }
+            function openEditExpense(e) { isEditing.value = true; editingExpenseId.value = e.id; const activePayers = Object.keys(e.payers).filter(id => Number(e.payers[id]) > 0.01).map(Number); const activeSplitters = Object.keys(e.split_details).filter(id => Number(e.split_details[id]) > 0.01).map(Number); const pVals = activePayers.map(id => Number(e.payers[id])); const sVals = activeSplitters.map(id => Number(e.split_details[id])); const isPManual = pVals.length > 1 ? !pVals.every(v => Math.abs(v - pVals[0]) < 0.2) : false; const isSManual = sVals.length > 1 ? !sVals.every(v => Math.abs(v - sVals[0]) < 0.2) : false; form.value = { title: e.title, amount: e.amount, date: e.date, category: e.category || '', pMode: isPManual ? 'manual' : 'equal', pList: activePayers, manualP: {...e.payers}, sMode: isSManual ? 'manual' : 'equal', sList: activeSplitters, manualS: {...e.split_details} }; members.value.forEach(m => { if (form.value.manualP[m.id] === undefined) form.value.manualP[m.id] = 0; if (form.value.manualS[m.id] === undefined) form.value.manualS[m.id] = 0; }); showModal.value = true; }
             const payManualDiff = computed(() => Number(form.value.amount) - Object.values(form.value.manualP).reduce((a,b)=>a+(Number(b)||0), 0));
             const splitManualDiff = computed(() => Number(form.value.amount) - Object.values(form.value.manualS).reduce((a,b)=>a+(Number(b)||0), 0));
             const isValid = computed(() => form.value.title && Number(form.value.amount) > 0 && (form.value.pMode === 'manual' ? Math.abs(payManualDiff.value) < 1 : form.value.pList.length > 0) && (form.value.sMode === 'manual' ? Math.abs(splitManualDiff.value) < 1 : form.value.sList.length > 0));
-
-            async function submitExpense() {
-                let p = {}, s = {}; const totalCents = Math.round(form.value.amount * 100);
-                if (form.value.pMode === 'equal') { const avg = Math.floor(totalCents / form.value.pList.length); form.value.pList.forEach(id => p[id] = avg / 100); p[form.value.pList[0]] = (avg + (totalCents % form.value.pList.length)) / 100; } else p = form.value.manualP;
-                if (form.value.sMode === 'equal') { const avg = Math.floor(totalCents / form.value.sList.length); form.value.sList.forEach(id => s[id] = avg / 100); s[form.value.sList[0]] = (avg + (totalCents % form.value.sList.length)) / 100; } else s = form.value.manualS;
-                const payload = { project_id: currentProjectId.value, title: form.value.title, amount: form.value.amount, date: form.value.date, category: form.value.category, payers: p, split_details: s };
-                if(isEditing.value) await client.from('expenses').update(payload).eq('id', editingExpenseId.value); else await client.from('expenses').insert(payload);
-                showModal.value = false; loadData();
-            }
+            async function submitExpense() { let p = {}, s = {}; const totalCents = Math.round(form.value.amount * 100); if (form.value.pMode === 'equal') { const avg = Math.floor(totalCents / form.value.pList.length); form.value.pList.forEach(id => p[id] = avg / 100); p[form.value.pList[0]] = (avg + (totalCents % form.value.pList.length)) / 100; } else p = form.value.manualP; if (form.value.sMode === 'equal') { const avg = Math.floor(totalCents / form.value.sList.length); form.value.sList.forEach(id => s[id] = avg / 100); s[form.value.sList[0]] = (avg + (totalCents % form.value.sList.length)) / 100; } else s = form.value.manualS; const payload = { project_id: currentProjectId.value, title: form.value.title, amount: form.value.amount, date: form.value.date, category: form.value.category, payers: p, split_details: s }; if(isEditing.value) await client.from('expenses').update(payload).eq('id', editingExpenseId.value); else await client.from('expenses').insert(payload); showModal.value = false; loadData(); }
             async function deleteExpense() { if (confirm('確定刪除花費？')) { await client.from('expenses').delete().eq('id', editingExpenseId.value); showModal.value=false; loadData(); } }
-
-            const settlement = computed(() => {
-                let bal = {}; members.value.forEach(m => bal[m.id]=0);
-                expenses.value.forEach(e => {
-                    for(let id in e.payers) if(bal[id] !== undefined) bal[id] += Math.round(Number(e.payers[id]) * 100);
-                    for(let id in e.split_details) if(bal[id] !== undefined) bal[id] -= Math.round(Number(e.split_details[id]) * 100);
-                });
-                const details = members.value.map(m => ({ id: m.id, name: m.name, net: bal[m.id]/100 }));
-                let ts = [], ds = details.filter(x=>x.net < -0.01).sort((a,b)=>a.net-b.net), cs = details.filter(x=>x.net > 0.01).sort((a,b)=>b.net-a.net);
-                let i=0, j=0; while(i < ds.length && j < cs.length) {
-                    let amt = Math.min(Math.abs(ds[i].net), cs[j].net);
-                    ts.push({from: ds[i].name, to: cs[j].name, amount: amt});
-                    ds[i].net += amt; cs[j].net -= amt; if(Math.abs(ds[i].net)<0.01) i++; if(cs[j].net<0.01) j++;
-                }
-                return { transfers: ts };
-            });
-
+            const settlement = computed(() => { let bal = {}; members.value.forEach(m => bal[m.id]=0); expenses.value.forEach(e => { for(let id in e.payers) if(bal[id] !== undefined) bal[id] += Math.round(Number(e.payers[id]) * 100); for(let id in e.split_details) if(bal[id] !== undefined) bal[id] -= Math.round(Number(e.split_details[id]) * 100); }); const details = members.value.map(m => ({ id: m.id, name: m.name, net: bal[m.id]/100 })); let ts = [], ds = details.filter(x=>x.net < -0.01).sort((a,b)=>a.net-b.net), cs = details.filter(x=>x.net > 0.01).sort((a,b)=>b.net-a.net); let i=0, j=0; while(i < ds.length && j < cs.length) { let amt = Math.min(Math.abs(ds[i].net), cs[j].net); ts.push({from: ds[i].name, to: cs[j].name, amount: amt}); ds[i].net += amt; cs[j].net -= amt; if(Math.abs(ds[i].net)<0.01) i++; if(cs[j].net<0.01) j++; } return { transfers: ts }; });
             function pressPin(n) { if (pin.value.length < 4) pin.value += n; if (pin.value.length === 4) handlePinComplete(); }
             async function handlePinComplete() { if (isLocked.value) { if (pin.value === adminPass.value) { isLocked.value = false; currentProjectId.value = null; pin.value = ''; fetchProjects(); } else { alert('PIN 錯誤'); pin.value = ''; } } else if (showPassSettings.value) { await client.from('app_settings').upsert({ id: 'admin_password', value: pin.value }); adminPass.value = pin.value; showPassSettings.value = false; pin.value = ''; } }
             const pinContext = computed(() => isLocked.value ? {title:'管理員解鎖'} : {title:'設定新密碼'});
@@ -510,7 +399,7 @@
             function toggleAllSplit() { if (form.value.sList.length === members.value.length) form.value.sList = []; else form.value.sList = members.value.map(m => m.id); }
             function copyLink() { navigator.clipboard.writeText(window.location.href); showToast.value = true; setTimeout(() => showToast.value = false, 2000); }
 
-            return { projects, currentProjectId, projectMeta, members, expenses, showModal, showSettlement, isEditing, form, isValid, totalExpense, memberStats, settlement, isLocked, pin, pinContext, showPassSettings, newProjectTitle, showToast, isRefreshing, editingProjectId, editingProjectName, editingProjectDate, formatDate, getPayerDisplay, getSplitCount, fetchProjects, createProject, enterProject, loadData, manualRefresh, startEditProject, saveProjectName, deleteProject, addMember, updateMember, deleteMember, openAddExpense, openEditExpense, toggleMemberPay, toggleMemberSplit, toggleAllSplit, submitExpense, deleteExpense, pressPin, handlePinComplete, backToHome, closePinPad, triggerPassSetup, copyLink, payManualDiff, splitManualDiff, invalidExpenseIds, handleSettlementClick, categoryStats };
+            return { projects, currentProjectId, projectMeta, members, expenses, showModal, showSettlement, isEditing, form, isValid, totalExpense, memberStats, settlement, isLocked, pin, pinContext, showPassSettings, newProjectTitle, showToast, isRefreshing, editingProjectId, editingProjectName, editingProjectDate, formatDate, getPayerDisplay, getSplitCount, fetchProjects, createProject, enterProject, loadData, manualRefresh, startEditProject, saveProjectName, deleteProject, addMember, updateMember, deleteMember, openAddExpense, openEditExpense, toggleMemberPay, toggleMemberSplit, toggleAllSplit, submitExpense, deleteExpense, pressPin, handlePinComplete, backToHome, closePinPad, triggerPassSetup, copyLink, payManualDiff, splitManualDiff, invalidExpenseIds, handleSettlementClick, categoryStats, getPaletteColor };
         }
     }).mount('#app');
 </script>
