@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Split.</title>
+    <link rel="icon" type="image/png" href="icon.png">
+    <link rel="apple-touch-icon" href="icon.png">
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
@@ -302,14 +304,14 @@
 
                 const total = entries.reduce((a,b)=>a+Number(b[1]),0);
 
-                const colorMap = {
-                    '飲食': '#B36A6A',
-                    '住宿': '#B58A6A',
-                    '交通': '#B7A96A',
-                    '票券': '#6F9A83',
-                    '購物': '#6F88A6',
-                    '未分類': '#8E9399'
-                };
+                const palette = [
+                    '#7C8EA3',
+                    '#8FA7A0',
+                    '#9DA4B0',
+                    '#A7B0A3',
+                    '#8C9BA8',
+                    '#9BA39A'
+                ];
 
                 return entries
                     .map(([label,value]) => ({
@@ -317,10 +319,10 @@
                         value,
                     }))
                     .sort((a,b)=>b.value - a.value)
-                    .map((item)=>({
+                    .map((item,index)=>({
                         ...item,
                         percent: ((item.value/total)*100).toFixed(1),
-                        color: colorMap[item.label] || '#8E9399'
+                        color: palette[index % palette.length]
                     }));
             });
 
@@ -362,7 +364,7 @@
                         },
                         options: {
                             responsive: true,
-                            cutout: '55%',   // 加厚
+                            cutout: '38%',   // 加厚
                             plugins: {
                                 legend: { display:false },
                                 tooltip: { enabled:false }
