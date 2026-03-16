@@ -627,10 +627,32 @@
                         scale: 2,
                         useCORS: true
                     });
-                    const link = document.createElement('a');
-                    link.download = `轉帳結果-${new Date().getTime()}.png`;
-                    link.href = canvas.toDataURL('image/png');
-                    link.click();
+
+                    // --- 套用優化後的下載邏輯 ---
+                    const blob = await new Promise(resolve => canvas.toBlob(resolve, "image/png"));
+                    const fileName = `轉帳建議-${new Date().getTime()}.png`;
+                    const file = new File([blob], fileName, { type: "image/png" });
+
+                    // 優先嘗試 Web Share API (手機原生分享)
+                    if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+                        try {
+                            await navigator.share({
+                                files: [file],
+                                title: '轉帳建議',
+                                text: `這是我們的行程結算：${projectMeta.value.name || ''}`
+                            });
+                        } catch (err) {
+                            console.log("分享取消或失敗", err);
+                        }
+                    } else {
+                        // 降級方案：直接下載 (使用虛擬錨點，避免跳轉頁面)
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = fileName;
+                        a.click();
+                        URL.revokeObjectURL(url);
+                    }
                 } catch (err) {
                     console.error('Download failed', err);
                 }
