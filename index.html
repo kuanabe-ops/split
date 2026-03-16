@@ -11,6 +11,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500&display=swap');
@@ -44,7 +45,7 @@
 <div id="app" v-cloak class="flex flex-col relative px-5">
 
     <transition name="fade">
-        <div v-if="showToast" class="fixed top-16 left-1/2 -translate-x-1/2 bg-white/10 backdrop-blur-xl text-white text-xs f-medium px-8 py-3 rounded-full shadow-2xl border border-white/10 z-[999]">連結已複製</div>
+        <div v-if="showToast" class="fixed top-16 left-1/2 -translate-x-1/2 bg-white/10 backdrop-blur-xl text-white text-xs f-medium px-8 py-3 rounded-full shadow-2xl border border-white/10 z-[999]">{{ toastMsg }}</div>
     </transition>
 
     <div v-if="isLocked || showPassSettings" class="fixed inset-0 bg-[#0F1115] z-[500] flex flex-col items-center justify-center p-6">
@@ -72,6 +73,7 @@
                     <div v-else><span class="text-lg f-medium text-white truncate block mb-1">{{ p.name }}</span><span class="text-[10px] text-gray-500 uppercase tracking-widest f-medium">{{ formatDate(p.created_at) }}</span></div>
                 </div>
                 <div v-if="editingProjectId !== p.id" class="flex gap-1">
+                    <button @click.stop="copyProjectId(p.id)" class="p-2 text-gray-500 hover:text-white transition-colors"><i data-lucide="copy" class="w-4 h-4"></i></button>
                     <button @click.stop="startEditProject(p)" class="p-2 text-gray-500"><i data-lucide="edit-2" class="w-4 h-4"></i></button>
                     <button @click.stop="deleteProject(p.id)" class="p-2 text-gray-500 hover:text-red-400"><i data-lucide="trash" class="w-4 h-4"></i></button>
                 </div>
@@ -206,13 +208,21 @@
     </div>
 
     <div v-if="showSettlement" class="fixed inset-0 bg-[#0F1115] z-[300] flex flex-col p-8 overflow-y-auto animate-in fade-in">
-        <div class="flex justify-between items-center mb-16"><h2 class="text-3xl f-light text-white">建議轉帳路徑</h2><button @click="showSettlement=false" class="p-3 bg-white/5 rounded-2xl text-gray-500"><i data-lucide="x" class="w-5 h-5"></i></button></div>
-        <div class="space-y-6">
-            <div v-for="t in settlement.transfers" class="flex justify-between items-center p-6 rounded-[24px] bg-white/5 border border-white/10 backdrop-blur-md">
-                <div class="flex flex-col gap-1"><span class="text-[14px] text-blue-300 uppercase tracking-widest">由 {{t.from}}</span><span class="text-sm f-medium text-white">給 {{t.to}}</span></div>
-                <span class="f-medium text-2xl text-white">${{Math.round(t.amount)}}</span>
+        <div id="settlementCaptureArea" class="w-full bg-[#0F1115] pb-6">
+            <div class="flex justify-between items-center mb-16">
+                <h2 class="text-3xl f-light text-white">建議轉帳路徑</h2>
+                <div class="flex gap-2" data-html2canvas-ignore>
+                    <button @click="downloadSettlementImage" class="p-3 bg-white/5 rounded-2xl text-gray-500 hover:text-white transition-colors"><i data-lucide="download" class="w-5 h-5"></i></button>
+                    <button @click="showSettlement=false" class="p-3 bg-white/5 rounded-2xl text-gray-500 hover:text-white transition-colors"><i data-lucide="x" class="w-5 h-5"></i></button>
+                </div>
             </div>
-            <p v-if="settlement.transfers.length === 0" class="text-center text-blue-300 py-10">目前無須轉帳</p>
+            <div class="space-y-6">
+                <div v-for="t in settlement.transfers" class="flex justify-between items-center p-6 rounded-[24px] bg-white/5 border border-white/10 backdrop-blur-md">
+                    <div class="flex flex-col gap-1"><span class="text-[14px] text-blue-300 uppercase tracking-widest">由 {{t.from}}</span><span class="text-sm f-medium text-white">給 {{t.to}}</span></div>
+                    <span class="f-medium text-2xl text-white">${{Math.round(t.amount)}}</span>
+                </div>
+                <p v-if="settlement.transfers.length === 0" class="text-center text-blue-300 py-10">目前無須轉帳</p>
+            </div>
         </div>
 
         <div class="mt-20 pb-16 flex flex-col items-center">
@@ -267,7 +277,7 @@
             const showModal = ref(false); const showSettlement = ref(false); const isEditing = ref(false); const editingExpenseId = ref(null);
             const editingProjectId = ref(null); const editingProjectName = ref(''); const editingProjectDate = ref('');
             const adminPass = ref(null); const isLocked = ref(false); const showPassSettings = ref(false); const pin = ref('');
-            const newProjectTitle = ref(''); const showToast = ref(false); const isRefreshing = ref(false);
+            const newProjectTitle = ref(''); const showToast = ref(false); const toastMsg = ref('連結已複製'); const isRefreshing = ref(false);
             
             const form = ref({ title: '', amount: '', date: '', category: '', pMode: 'equal', pList: [], manualP: {}, sMode: 'equal', sList: [], manualS: {} });
             const invalidExpenseIds = ref([]);
@@ -605,9 +615,28 @@
             function toggleMemberPay(id) { const i = form.value.pList.indexOf(id); if (i > -1) form.value.pList.splice(i, 1); else form.value.pList.push(id); }
             function toggleMemberSplit(id) { const i = form.value.sList.indexOf(id); if (i > -1) form.value.sList.splice(i, 1); else form.value.sList.push(id); }
             function toggleAllSplit() { if (form.value.sList.length === members.value.length) form.value.sList = []; else form.value.sList = members.value.map(m => m.id); }
-            function copyLink() { navigator.clipboard.writeText(window.location.href); showToast.value = true; setTimeout(() => showToast.value = false, 2000); }
+            function copyLink() { navigator.clipboard.writeText(window.location.href); toastMsg.value = '連結已複製'; showToast.value = true; setTimeout(() => showToast.value = false, 2000); }
+            function copyProjectId(id) { navigator.clipboard.writeText(id); toastMsg.value = 'ID 已複製'; showToast.value = true; setTimeout(() => showToast.value = false, 2000); }
+            
+            async function downloadSettlementImage() {
+                const el = document.getElementById('settlementCaptureArea');
+                if (!el) return;
+                try {
+                    const canvas = await html2canvas(el, {
+                        backgroundColor: '#0F1115',
+                        scale: 2,
+                        useCORS: true
+                    });
+                    const link = document.createElement('a');
+                    link.download = `轉帳結果-${new Date().getTime()}.png`;
+                    link.href = canvas.toDataURL('image/png');
+                    link.click();
+                } catch (err) {
+                    console.error('Download failed', err);
+                }
+            }
 
-            return { projects, currentProjectId, projectMeta, members, expenses, showModal, showSettlement, isEditing, form, isValid, totalExpense, memberStats, settlement, isLocked, pin, pinContext, showPassSettings, newProjectTitle, showToast, isRefreshing, editingProjectId, editingProjectName, editingProjectDate, formatDate, getPayerDisplay, getSplitCount, fetchProjects, createProject, enterProject, loadData, manualRefresh, startEditProject, saveProjectName, deleteProject, addMember, updateMember, deleteMember, openAddExpense, openEditExpense, toggleMemberPay, toggleMemberSplit, toggleAllSplit, submitExpense, deleteExpense, pressPin, handlePinComplete, backToHome, closePinPad, triggerPassSetup, copyLink, payManualDiff, splitManualDiff, invalidExpenseIds, handleSettlementClick, categoryStats, sortedCategoryList };
+            return { projects, currentProjectId, projectMeta, members, expenses, showModal, showSettlement, isEditing, form, isValid, totalExpense, memberStats, settlement, isLocked, pin, pinContext, showPassSettings, newProjectTitle, showToast, toastMsg, isRefreshing, editingProjectId, editingProjectName, editingProjectDate, formatDate, getPayerDisplay, getSplitCount, fetchProjects, createProject, enterProject, loadData, manualRefresh, startEditProject, saveProjectName, deleteProject, addMember, updateMember, deleteMember, openAddExpense, openEditExpense, toggleMemberPay, toggleMemberSplit, toggleAllSplit, submitExpense, deleteExpense, pressPin, handlePinComplete, backToHome, closePinPad, triggerPassSetup, copyLink, copyProjectId, downloadSettlementImage, payManualDiff, splitManualDiff, invalidExpenseIds, handleSettlementClick, categoryStats, sortedCategoryList };
         }
     }).mount('#app');
 </script>
