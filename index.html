@@ -11,7 +11,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500&display=swap');
@@ -206,13 +205,8 @@
         </div>
     </div>
 
-    <div v-if="showSettlement" id="settlement-export-area" class="fixed inset-0 bg-[#0F1115] z-[300] flex flex-col p-8 overflow-y-auto animate-in fade-in">
-        <div class="flex justify-between items-center mb-16"><h2 class="text-3xl f-light text-white">建議轉帳路徑</h2>
-            <div class="flex gap-2">
-                <button @click="exportToImage" class="p-3 bg-white/5 rounded-2xl text-blue-300"><i data-lucide="download"></i></button>
-                <button @click="showSettlement=false" class="p-3 bg-white/5 rounded-2xl text-gray-500"><i data-lucide="x" class="w-5 h-5"></i></button>
-            </div>
-        </div>
+    <div v-if="showSettlement" class="fixed inset-0 bg-[#0F1115] z-[300] flex flex-col p-8 overflow-y-auto animate-in fade-in">
+        <div class="flex justify-between items-center mb-16"><h2 class="text-3xl f-light text-white">建議轉帳路徑</h2><button @click="showSettlement=false" class="p-3 bg-white/5 rounded-2xl text-gray-500"><i data-lucide="x" class="w-5 h-5"></i></button></div>
         <div class="space-y-6">
             <div v-for="t in settlement.transfers" class="flex justify-between items-center p-6 rounded-[24px] bg-white/5 border border-white/10 backdrop-blur-md">
                 <div class="flex flex-col gap-1"><span class="text-[14px] text-blue-300 uppercase tracking-widest">由 {{t.from}}</span><span class="text-sm f-medium text-white">給 {{t.to}}</span></div>
@@ -441,15 +435,34 @@
             async function manualRefresh() { isRefreshing.value = true; await loadData(); setTimeout(() => isRefreshing.value = false, 500); }
 
             async function createProject() { 
-                if (!newProjectTitle.value.trim()) return; 
-                const { data } = await client.from('projects').insert({ name: newProjectTitle.value }).select().single(); 
+                const input = newProjectTitle.value.trim();
+                if (!input) return; 
+
+                // 判斷是否為 UUID 格式的 ID (Supabase 預設 ID 格式)
+                const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
                 
-                const savedIds = JSON.parse(localStorage.getItem('split_my_projects') || '[]');
-                if (!savedIds.includes(data.id)) {
-                    savedIds.push(data.id);
-                    localStorage.setItem('split_my_projects', JSON.stringify(savedIds));
+                if (uuidRegex.test(input)) {
+                    // 如果輸入的是 ID，則將其新增進 local storage
+                    const savedIds = JSON.parse(localStorage.getItem('split_my_projects') || '[]');
+                    if (!savedIds.includes(input)) {
+                        savedIds.push(input);
+                        localStorage.setItem('split_my_projects', JSON.stringify(savedIds));
+                    }
+                    newProjectTitle.value = '';
+                    enterProject(input);
+                } else {
+                    // 如果輸入的是標題，則執行原本的新增專案功能
+                    const { data } = await client.from('projects').insert({ name: input }).select().single(); 
+                    if (!data) return;
+
+                    const savedIds = JSON.parse(localStorage.getItem('split_my_projects') || '[]');
+                    if (!savedIds.includes(data.id)) {
+                        savedIds.push(data.id);
+                        localStorage.setItem('split_my_projects', JSON.stringify(savedIds));
+                    }
+                    newProjectTitle.value = '';
+                    enterProject(data.id); 
                 }
-                enterProject(data.id); 
             }
             function startEditProject(p) { editingProjectId.value = p.id; editingProjectName.value = p.name; editingProjectDate.value = formatDate(p.created_at); }
             async function saveProjectName(id) { await client.from('projects').update({ name: editingProjectName.value, created_at: editingProjectDate.value }).eq('id', id); editingProjectId.value = null; fetchProjects(); }
@@ -594,29 +607,7 @@
             function toggleAllSplit() { if (form.value.sList.length === members.value.length) form.value.sList = []; else form.value.sList = members.value.map(m => m.id); }
             function copyLink() { navigator.clipboard.writeText(window.location.href); showToast.value = true; setTimeout(() => showToast.value = false, 2000); }
 
-            async function exportToImage() {
-                const element = document.getElementById('settlement-export-area');
-                if (!element) return;
-                
-                try {
-                    const canvas = await html2canvas(element, {
-                        backgroundColor: '#0F1115',
-                        scale: 2, // 提高解析度
-                        logging: false,
-                        useCORS: true
-                    });
-                    
-                    const link = document.createElement('a');
-                    link.download = `Split_結算_${projectMeta.value.name || '項目'}.png`;
-                    link.href = canvas.toDataURL('image/png');
-                    link.click();
-                } catch (err) {
-                    console.error('匯出失敗', err);
-                    alert('匯出失敗，請稍後再試');
-                }
-            }
-
-            return { projects, currentProjectId, projectMeta, members, expenses, showModal, showSettlement, isEditing, form, isValid, totalExpense, memberStats, settlement, isLocked, pin, pinContext, showPassSettings, newProjectTitle, showToast, isRefreshing, editingProjectId, editingProjectName, editingProjectDate, formatDate, getPayerDisplay, getSplitCount, fetchProjects, createProject, enterProject, loadData, manualRefresh, startEditProject, saveProjectName, deleteProject, addMember, updateMember, deleteMember, openAddExpense, openEditExpense, toggleMemberPay, toggleMemberSplit, toggleAllSplit, submitExpense, deleteExpense, pressPin, handlePinComplete, backToHome, closePinPad, triggerPassSetup, copyLink, payManualDiff, splitManualDiff, invalidExpenseIds, handleSettlementClick, categoryStats, sortedCategoryList, exportToImage };
+            return { projects, currentProjectId, projectMeta, members, expenses, showModal, showSettlement, isEditing, form, isValid, totalExpense, memberStats, settlement, isLocked, pin, pinContext, showPassSettings, newProjectTitle, showToast, isRefreshing, editingProjectId, editingProjectName, editingProjectDate, formatDate, getPayerDisplay, getSplitCount, fetchProjects, createProject, enterProject, loadData, manualRefresh, startEditProject, saveProjectName, deleteProject, addMember, updateMember, deleteMember, openAddExpense, openEditExpense, toggleMemberPay, toggleMemberSplit, toggleAllSplit, submitExpense, deleteExpense, pressPin, handlePinComplete, backToHome, closePinPad, triggerPassSetup, copyLink, payManualDiff, splitManualDiff, invalidExpenseIds, handleSettlementClick, categoryStats, sortedCategoryList };
         }
     }).mount('#app');
 </script>
