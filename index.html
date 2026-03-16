@@ -60,7 +60,7 @@
             <button @click="triggerPassSetup" class="p-3 bg-white/5 rounded-2xl text-gray-400 border border-white/5"><i data-lucide="shield"></i></button>
         </header>
         <div class="flex items-center gap-3 w-full mb-12">
-            <input v-model="newProjectTitle" type="text" placeholder="輸入名稱或ID後按「+」新增專案" @keyup.enter="createProject" class="w-full bg-white/5 border border-white/5 rounded-2xl px-6 py-4 text-base outline-none f-light text-white">
+            <input v-model="newProjectTitle" type="text" placeholder="輸入名稱或 ID 後按 + 新增專案" @keyup.enter="createProject" class="w-full bg-white/5 border border-white/5 rounded-2xl px-6 py-4 text-base outline-none f-light text-white">
             <button @click="createProject" class="w-14 h-14 bg-white/10 rounded-2xl flex items-center justify-center flex-shrink-0 border border-white/5 active:scale-95"><i data-lucide="plus" class="w-5 h-5 text-white/40"></i></button>
         </div>
         <div class="space-y-4 pb-24">
