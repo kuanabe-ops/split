@@ -11,6 +11,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500&display=swap');
@@ -205,8 +206,13 @@
         </div>
     </div>
 
-    <div v-if="showSettlement" class="fixed inset-0 bg-[#0F1115] z-[300] flex flex-col p-8 overflow-y-auto animate-in fade-in">
-        <div class="flex justify-between items-center mb-16"><h2 class="text-3xl f-light text-white">建議轉帳路徑</h2><button @click="showSettlement=false" class="p-3 bg-white/5 rounded-2xl text-gray-500"><i data-lucide="x" class="w-5 h-5"></i></button></div>
+    <div v-if="showSettlement" id="settlement-export-area" class="fixed inset-0 bg-[#0F1115] z-[300] flex flex-col p-8 overflow-y-auto animate-in fade-in">
+        <div class="flex justify-between items-center mb-16"><h2 class="text-3xl f-light text-white">建議轉帳路徑</h2>
+            <div class="flex gap-2">
+                <button @click="exportToImage" class="p-3 bg-white/5 rounded-2xl text-blue-300"><i data-lucide="download"></i></button>
+                <button @click="showSettlement=false" class="p-3 bg-white/5 rounded-2xl text-gray-500"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+        </div>
         <div class="space-y-6">
             <div v-for="t in settlement.transfers" class="flex justify-between items-center p-6 rounded-[24px] bg-white/5 border border-white/10 backdrop-blur-md">
                 <div class="flex flex-col gap-1"><span class="text-[14px] text-blue-300 uppercase tracking-widest">由 {{t.from}}</span><span class="text-sm f-medium text-white">給 {{t.to}}</span></div>
@@ -413,9 +419,15 @@
             });
 
             async function fetchProjects() { 
+                const savedIds = JSON.parse(localStorage.getItem('split_my_projects') || '[]');
+                if (savedIds.length === 0) {
+                    projects.value = [];
+                    return;
+                }
                 const { data } = await client
                     .from('projects')
                     .select('*')
+                    .in('id', savedIds)
                     .order('created_at', { ascending: false }); 
                 projects.value = data || [];
             }
@@ -428,10 +440,28 @@
             }
             async function manualRefresh() { isRefreshing.value = true; await loadData(); setTimeout(() => isRefreshing.value = false, 500); }
 
-            async function createProject() { if (!newProjectTitle.value.trim()) return; const { data } = await client.from('projects').insert({ name: newProjectTitle.value }).select().single(); enterProject(data.id); }
+            async function createProject() { 
+                if (!newProjectTitle.value.trim()) return; 
+                const { data } = await client.from('projects').insert({ name: newProjectTitle.value }).select().single(); 
+                
+                const savedIds = JSON.parse(localStorage.getItem('split_my_projects') || '[]');
+                if (!savedIds.includes(data.id)) {
+                    savedIds.push(data.id);
+                    localStorage.setItem('split_my_projects', JSON.stringify(savedIds));
+                }
+                enterProject(data.id); 
+            }
             function startEditProject(p) { editingProjectId.value = p.id; editingProjectName.value = p.name; editingProjectDate.value = formatDate(p.created_at); }
             async function saveProjectName(id) { await client.from('projects').update({ name: editingProjectName.value, created_at: editingProjectDate.value }).eq('id', id); editingProjectId.value = null; fetchProjects(); }
-            async function deleteProject(id) { if (confirm('確定刪除？')) { await client.from('projects').delete().eq('id', id); fetchProjects(); } }
+            async function deleteProject(id) { 
+                if (confirm('確定刪除？')) { 
+                    await client.from('projects').delete().eq('id', id); 
+                    let savedIds = JSON.parse(localStorage.getItem('split_my_projects') || '[]');
+                    savedIds = savedIds.filter(pid => pid !== id);
+                    localStorage.setItem('split_my_projects', JSON.stringify(savedIds));
+                    fetchProjects(); 
+                } 
+            }
 
             async function addMember() {
                 const existNum = members.value.map(m => { const res = m.name.match(/^成員(\d+)$/); return res ? Number(res[1]) : null; }).filter(n => n !== null);
@@ -564,7 +594,29 @@
             function toggleAllSplit() { if (form.value.sList.length === members.value.length) form.value.sList = []; else form.value.sList = members.value.map(m => m.id); }
             function copyLink() { navigator.clipboard.writeText(window.location.href); showToast.value = true; setTimeout(() => showToast.value = false, 2000); }
 
-            return { projects, currentProjectId, projectMeta, members, expenses, showModal, showSettlement, isEditing, form, isValid, totalExpense, memberStats, settlement, isLocked, pin, pinContext, showPassSettings, newProjectTitle, showToast, isRefreshing, editingProjectId, editingProjectName, editingProjectDate, formatDate, getPayerDisplay, getSplitCount, fetchProjects, createProject, enterProject, loadData, manualRefresh, startEditProject, saveProjectName, deleteProject, addMember, updateMember, deleteMember, openAddExpense, openEditExpense, toggleMemberPay, toggleMemberSplit, toggleAllSplit, submitExpense, deleteExpense, pressPin, handlePinComplete, backToHome, closePinPad, triggerPassSetup, copyLink, payManualDiff, splitManualDiff, invalidExpenseIds, handleSettlementClick, categoryStats, sortedCategoryList };
+            async function exportToImage() {
+                const element = document.getElementById('settlement-export-area');
+                if (!element) return;
+                
+                try {
+                    const canvas = await html2canvas(element, {
+                        backgroundColor: '#0F1115',
+                        scale: 2, // 提高解析度
+                        logging: false,
+                        useCORS: true
+                    });
+                    
+                    const link = document.createElement('a');
+                    link.download = `Split_結算_${projectMeta.value.name || '項目'}.png`;
+                    link.href = canvas.toDataURL('image/png');
+                    link.click();
+                } catch (err) {
+                    console.error('匯出失敗', err);
+                    alert('匯出失敗，請稍後再試');
+                }
+            }
+
+            return { projects, currentProjectId, projectMeta, members, expenses, showModal, showSettlement, isEditing, form, isValid, totalExpense, memberStats, settlement, isLocked, pin, pinContext, showPassSettings, newProjectTitle, showToast, isRefreshing, editingProjectId, editingProjectName, editingProjectDate, formatDate, getPayerDisplay, getSplitCount, fetchProjects, createProject, enterProject, loadData, manualRefresh, startEditProject, saveProjectName, deleteProject, addMember, updateMember, deleteMember, openAddExpense, openEditExpense, toggleMemberPay, toggleMemberSplit, toggleAllSplit, submitExpense, deleteExpense, pressPin, handlePinComplete, backToHome, closePinPad, triggerPassSetup, copyLink, payManualDiff, splitManualDiff, invalidExpenseIds, handleSettlementClick, categoryStats, sortedCategoryList, exportToImage };
         }
     }).mount('#app');
 </script>
