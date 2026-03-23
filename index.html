@@ -129,15 +129,19 @@
 >
     + 新增花費
 </button></div>
-                <div v-for="exp in expenses" :key="exp.id" @click="openEditExpense(exp)" 
-                     :class="['card p-5 mb-3 flex justify-between items-center active:scale-[0.98] transition-all', invalidExpenseIds.includes(exp.id) ? 'border border-red-500/40 bg-red-500/5' : '']">
-                    <div class="flex-1 truncate pr-3">
-                        <p class="text-base f-medium mb-1 truncate text-white">{{ exp.title }}</p>
-                        <p class="text-xs text-blue-300 f-medium">{{ exp.category || '未分類' }} · {{ getPayerDisplay(exp) }} · {{ getSplitCount(exp) }} 人分攤</p>
-                    </div>
-                    <div class="text-right">
-                        <span class="f-medium text-xl tracking-tight text-white">${{ Number(exp.amount).toLocaleString() }}</span>
-                        <p v-if="invalidExpenseIds.includes(exp.id)" class="text-[10px] text-red-400 mt-1">手動金額未平衡</p>
+                
+                <div v-for="group in groupedExpenses" :key="group.date" class="mb-6">
+                    <div class="text-[10px] text-gray-500 mb-2 px-2 f-medium tracking-widest uppercase">{{ group.date }}</div>
+                    <div v-for="exp in group.list" :key="exp.id" @click="openEditExpense(exp)" 
+                         :class="['card p-5 mb-3 flex justify-between items-center active:scale-[0.98] transition-all', invalidExpenseIds.includes(exp.id) ? 'border border-red-500/40 bg-red-500/5' : '']">
+                        <div class="flex-1 truncate pr-3">
+                            <p class="text-base f-medium mb-1 truncate text-white">{{ exp.title }}</p>
+                            <p class="text-xs text-blue-300 f-medium">{{ exp.category || '未分類' }} · {{ getPayerDisplay(exp) }} · {{ getSplitCount(exp) }} 人分攤</p>
+                        </div>
+                        <div class="text-right">
+                            <span class="f-medium text-xl tracking-tight text-white">${{ Number(exp.amount).toLocaleString() }}</span>
+                            <p v-if="invalidExpenseIds.includes(exp.id)" class="text-[10px] text-red-400 mt-1">手動金額未平衡</p>
+                        </div>
                     </div>
                 </div>
             </section>
@@ -300,6 +304,22 @@
             }
 
             const totalExpense = computed(() => expenses.value.reduce((a,b)=> a + (Number(b.amount) || 0), 0));
+            
+            const groupedExpenses = computed(() => {
+                const groups = {};
+                expenses.value.forEach(exp => {
+                    const date = exp.date || '未設定日期';
+                    if (!groups[date]) groups[date] = [];
+                    groups[date].push(exp);
+                });
+                return Object.keys(groups)
+                    .sort((a, b) => b.localeCompare(a))
+                    .map(date => ({
+                        date,
+                        list: groups[date]
+                    }));
+            });
+
             const memberStats = computed(() => {
                 let res = {}; members.value.forEach(m => res[m.id] = 0);
                 expenses.value.forEach(e => { for (let id in e.split_details) if (res[id] !== undefined) res[id] += Number(e.split_details[id]); });
@@ -658,7 +678,7 @@
                 }
             }
 
-            return { projects, currentProjectId, projectMeta, members, expenses, showModal, showSettlement, isEditing, form, isValid, totalExpense, memberStats, settlement, isLocked, pin, pinContext, showPassSettings, newProjectTitle, showToast, toastMsg, isRefreshing, editingProjectId, editingProjectName, editingProjectDate, formatDate, getPayerDisplay, getSplitCount, fetchProjects, createProject, enterProject, loadData, manualRefresh, startEditProject, saveProjectName, deleteProject, addMember, updateMember, deleteMember, openAddExpense, openEditExpense, toggleMemberPay, toggleMemberSplit, toggleAllSplit, submitExpense, deleteExpense, pressPin, handlePinComplete, backToHome, closePinPad, triggerPassSetup, copyLink, copyProjectId, downloadSettlementImage, payManualDiff, splitManualDiff, invalidExpenseIds, handleSettlementClick, categoryStats, sortedCategoryList };
+            return { projects, currentProjectId, projectMeta, members, expenses, groupedExpenses, showModal, showSettlement, isEditing, form, isValid, totalExpense, memberStats, settlement, isLocked, pin, pinContext, showPassSettings, newProjectTitle, showToast, toastMsg, isRefreshing, editingProjectId, editingProjectName, editingProjectDate, formatDate, getPayerDisplay, getSplitCount, fetchProjects, createProject, enterProject, loadData, manualRefresh, startEditProject, saveProjectName, deleteProject, addMember, updateMember, deleteMember, openAddExpense, openEditExpense, toggleMemberPay, toggleMemberSplit, toggleAllSplit, submitExpense, deleteExpense, pressPin, handlePinComplete, backToHome, closePinPad, triggerPassSetup, copyLink, copyProjectId, downloadSettlementImage, payManualDiff, splitManualDiff, invalidExpenseIds, handleSettlementClick, categoryStats, sortedCategoryList };
         }
     }).mount('#app');
 </script>
