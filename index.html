@@ -129,7 +129,7 @@
 >
     + 新增花費
 </button></div>
-                
+
                 <div v-for="group in groupedExpenses" :key="group.date" class="mb-6">
                     <div class="text-[10px] text-gray-500 mb-2 px-2 f-medium tracking-widest uppercase">{{ group.date }}</div>
                     <div v-for="exp in group.list" :key="exp.id" @click="openEditExpense(exp)" 
@@ -165,7 +165,7 @@
             <div class="space-y-4 pb-10">
                 <input v-model="form.date" type="date" class="w-full text-base text-blue-300 mb-2 outline-none bg-transparent f-medium">
                 <input v-model="form.title" type="text" placeholder="消費項目" class="w-full bg-transparent border-b border-white/10 py-3 text-lg text-white outline-none">
-                
+
                 <div class="flex gap-3 items-end border-b border-white/10 pb-3">
                     <input v-model.number="form.amount" type="number" placeholder="金額" class="w-28 bg-transparent text-lg text-white outline-none">
                     <select v-model="form.category" class="flex-1 min-w-0 bg-white/5 border border-white/10 text-blue-300 text-sm px-3 py-2 rounded-xl outline-none">
@@ -177,7 +177,7 @@
                         <option value="購物" class="bg-[#161A22]">購物</option>
                     </select>
                 </div>
-                
+
                 <div class="pt-6 space-y-8">
                     <div>
                         <div class="flex justify-between items-center mb-4"><span class="text-xs text-blue-300 uppercase f-medium">誰付款？</span><button @click="form.pMode = form.pMode==='equal'?'manual':'equal'" class="text-xs bg-white/5 text-blue-300 px-4 py-1.5 rounded-full">{{ form.pMode==='equal' ? '平均' : '手動' }}</button></div>
@@ -234,7 +234,7 @@
                         </div>
                         <div class="flex justify-between text-xs mb-4">
                             <span class="text-gray-400">剩餘</span>
-                            <span class="text-red-300 f-medium">${{ Math.max(0, Math.round(t.amount - getRepaidAmount(t.from_id, t.to_id))).toLocaleString() }}</span>
+                            <span class="text-red-300 f-medium">${{ Math.max(0, Math.round(t.amount)).toLocaleString() }}</span>
                         </div>
                         <div class="flex gap-2" data-html2canvas-ignore>
                             <button @click="addRepayment(t)" class="flex-1 bg-white text-black py-2 rounded-xl text-xs f-medium active:scale-95 transition">登記還款</button>
@@ -279,7 +279,7 @@
             <div class="w-full max-w-[320px] space-y-3">
                 <div v-for="item in sortedCategoryList" 
                     class="flex justify-between items-center px-4 py-3 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md">
-                    
+
                     <div class="flex items-center gap-3">
                         <div :style="{background:item.color}" 
                             class="w-3 h-3 rounded-full shadow-md">
@@ -317,7 +317,7 @@
             const editingProjectId = ref(null); const editingProjectName = ref(''); const editingProjectDate = ref('');
             const adminPass = ref(null); const isLocked = ref(false); const showPassSettings = ref(false); const pin = ref('');
             const newProjectTitle = ref(''); const showToast = ref(false); const toastMsg = ref('連結已複製'); const isRefreshing = ref(false);
-            
+
             const form = ref({ title: '', amount: '', date: '', category: '', pMode: 'equal', pList: [], manualP: {}, sMode: 'equal', sList: [], manualS: {} });
             const invalidExpenseIds = ref([]);
 
@@ -339,7 +339,7 @@
             }
 
             const totalExpense = computed(() => expenses.value.reduce((a,b)=> a + (Number(b.amount) || 0), 0));
-            
+
             const groupedExpenses = computed(() => {
                 const groups = {};
                 expenses.value.forEach(exp => {
@@ -524,7 +524,7 @@
 
                 // 判斷是否為 UUID 格式的 ID (Supabase 預設 ID 格式)
                 const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-                
+
                 if (uuidRegex.test(input)) {
                     // 如果輸入的是 ID，則將其新增進 local storage
                     const savedIds = JSON.parse(localStorage.getItem('split_my_projects') || '[]');
@@ -671,6 +671,15 @@
                     for(let id in e.payers) if(bal[id] !== undefined) bal[id] += Math.round(Number(e.payers[id]) * 100);
                     for(let id in e.split_details) if(bal[id] !== undefined) bal[id] -= Math.round(Number(e.split_details[id]) * 100);
                 });
+                repayments.value.forEach(r => {
+                    const fromId = r.from_member_id;
+                    const toId = r.to_member_id;
+                    const amount = Math.round(Number(r.amount || 0) * 100);
+                    if (bal[fromId] !== undefined && bal[toId] !== undefined && amount > 0) {
+                        bal[fromId] += amount;
+                        bal[toId] -= amount;
+                    }
+                });
                 const details = members.value.map(m => ({ id: m.id, name: m.name, net: bal[m.id]/100 }));
                 let ts = [], ds = details.filter(x=>x.net < -0.01).sort((a,b)=>a.net-b.net), cs = details.filter(x=>x.net > 0.01).sort((a,b)=>b.net-a.net);
                 let i=0, j=0; while(i < ds.length && j < cs.length) {
@@ -682,8 +691,7 @@
             });
 
             async function addRepayment(t) {
-                const alreadyPaid = getRepaidAmount(t.from_id, t.to_id);
-                const remain = Math.max(0, Math.round((Number(t.amount) - alreadyPaid) * 100) / 100);
+                const remain = Math.max(0, Math.round(Number(t.amount) * 100) / 100);
                 if (remain <= 0) {
                     alert('這筆已經還清');
                     return;
@@ -736,7 +744,7 @@
             function toggleAllSplit() { if (form.value.sList.length === members.value.length) form.value.sList = []; else form.value.sList = members.value.map(m => m.id); }
             function copyLink() { navigator.clipboard.writeText(window.location.href); toastMsg.value = '連結已複製'; showToast.value = true; setTimeout(() => showToast.value = false, 2000); }
             function copyProjectId(id) { navigator.clipboard.writeText(id); toastMsg.value = 'ID 已複製'; showToast.value = true; setTimeout(() => showToast.value = false, 2000); }
-            
+
             async function downloadSettlementImage() {
                 const el = document.getElementById('settlementCaptureArea');
                 if (!el) return;
