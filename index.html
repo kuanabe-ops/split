@@ -221,11 +221,46 @@
                 </div>
             </div>
             <div class="space-y-6">
-                <div v-for="t in settlement.transfers" class="flex justify-between items-center p-6 rounded-[24px] bg-white/5 border border-white/10 backdrop-blur-md">
-                    <div class="flex flex-col gap-1"><span class="text-[14px] text-blue-300 uppercase tracking-widest">由 {{t.from}}</span><span class="text-sm f-medium text-white">給 {{t.to}}</span></div>
-                    <span class="f-medium text-2xl text-white">${{Math.round(t.amount)}}</span>
+                <div v-for="t in settlement.transfers" class="p-6 rounded-[24px] bg-white/5 border border-white/10 backdrop-blur-md">
+                    <div class="flex justify-between items-center">
+                        <div class="flex flex-col gap-1"><span class="text-[14px] text-blue-300 uppercase tracking-widest">由 {{t.from}}</span><span class="text-sm f-medium text-white">給 {{t.to}}</span></div>
+                        <span class="f-medium text-2xl text-white">${{Math.round(t.amount)}}</span>
+                    </div>
+
+                    <div class="mt-5 pt-4 border-t border-white/10">
+                        <div class="flex justify-between text-xs mb-2">
+                            <span class="text-gray-400">已還款</span>
+                            <span class="text-green-300 f-medium">${{ Math.round(getRepaidAmount(t.from_id, t.to_id)).toLocaleString() }}</span>
+                        </div>
+                        <div class="flex justify-between text-xs mb-4">
+                            <span class="text-gray-400">剩餘</span>
+                            <span class="text-red-300 f-medium">${{ Math.max(0, Math.round(t.amount - getRepaidAmount(t.from_id, t.to_id))).toLocaleString() }}</span>
+                        </div>
+                        <div class="flex gap-2" data-html2canvas-ignore>
+                            <button @click="addRepayment(t)" class="flex-1 bg-white text-black py-2 rounded-xl text-xs f-medium active:scale-95 transition">登記還款</button>
+                            <button @click="clearRepayments(t)" class="px-4 bg-white/5 text-red-300 py-2 rounded-xl text-xs f-medium active:scale-95 transition">清除</button>
+                        </div>
+                    </div>
                 </div>
                 <p v-if="settlement.transfers.length === 0" class="text-center text-blue-300 py-10">目前無須轉帳</p>
+            </div>
+
+            <div v-if="repayments.length > 0" class="mt-12">
+                <h3 class="text-xs text-blue-300 tracking-[0.3em] uppercase f-medium mb-4">還款紀錄</h3>
+                <div class="space-y-3">
+                    <div v-for="r in repaymentHistory" :key="r.id" class="flex justify-between items-center px-4 py-3 rounded-2xl bg-white/5 border border-white/10">
+                        <div>
+                            <div class="text-sm text-white f-medium">{{ r.fromName }} 給 {{ r.toName }}</div>
+                            <div class="text-[10px] text-gray-500 tracking-widest">{{ formatDate(r.created_at) }}</div>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <span class="text-sm text-green-300 f-medium">${{ Number(r.amount).toLocaleString() }}</span>
+                            <button @click="deleteRepayment(r.id)" class="text-red-400 p-1" data-html2canvas-ignore>
+                                <i data-lucide="x" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -277,7 +312,7 @@
 
     createApp({
         setup() {
-            const projects = ref([]); const currentProjectId = ref(null); const projectMeta = ref({}); const members = ref([]); const expenses = ref([]);
+            const projects = ref([]); const currentProjectId = ref(null); const projectMeta = ref({}); const members = ref([]); const expenses = ref([]); const repayments = ref([]);
             const showModal = ref(false); const showSettlement = ref(false); const isEditing = ref(false); const editingExpenseId = ref(null);
             const editingProjectId = ref(null); const editingProjectName = ref(''); const editingProjectDate = ref('');
             const adminPass = ref(null); const isLocked = ref(false); const showPassSettings = ref(false); const pin = ref('');
@@ -293,7 +328,7 @@
                 const pid = new URLSearchParams(window.location.search).get('pid');
                 if (pid) enterProject(pid); else fetchProjects();
             });
-            watch([projects, currentProjectId, showModal, showSettlement, isLocked], refreshIcons);
+            watch([projects, currentProjectId, showModal, showSettlement, isLocked, repayments], refreshIcons);
 
             const formatDate = (d) => d ? new Date(d).toISOString().split('T')[0] : '';
             function getSplitCount(exp) { return Object.values(exp.split_details || {}).filter(v => Number(v) > 0.1).length; }
@@ -364,6 +399,24 @@
                         color: colorMap[item.label] || '#8E9399'
                     }));
             });
+
+            const repaymentHistory = computed(() => {
+                return repayments.value.map(r => {
+                    const from = members.value.find(m => m.id == r.from_member_id);
+                    const to = members.value.find(m => m.id == r.to_member_id);
+                    return {
+                        ...r,
+                        fromName: from ? from.name : '未知成員',
+                        toName: to ? to.name : '未知成員'
+                    };
+                });
+            });
+
+            function getRepaidAmount(fromId, toId) {
+                return repayments.value
+                    .filter(r => String(r.from_member_id) === String(fromId) && String(r.to_member_id) === String(toId))
+                    .reduce((sum, r) => sum + Number(r.amount || 0), 0);
+            }
 
             let chartInstance = null;
 
@@ -460,6 +513,7 @@
                 const { data: p } = await client.from('projects').select('*').eq('id', currentProjectId.value).single(); projectMeta.value = p || {};
                 const { data: m } = await client.from('members').select('*').eq('project_id', currentProjectId.value).order('id'); members.value = m || [];
                 const { data: e } = await client.from('expenses').select('*').eq('project_id', currentProjectId.value).order('created_at'); expenses.value = e || [];
+                const { data: r } = await client.from('repayments').select('*').eq('project_id', currentProjectId.value).order('created_at', { ascending: false }); repayments.value = r || [];
                 validateBeforeSettlement();
             }
             async function manualRefresh() { isRefreshing.value = true; await loadData(); setTimeout(() => isRefreshing.value = false, 500); }
@@ -544,6 +598,7 @@
                         updates.push(client.from('expenses').update({ payers: p, split_details: s }).eq('id', exp.id));
                     });
                     if (updates.length > 0) await Promise.all(updates);
+                    await client.from('repayments').delete().eq('project_id', currentProjectId.value).or(`from_member_id.eq.${id},to_member_id.eq.${id}`);
                     await client.from('members').delete().eq('id', id);
                     await loadData();
                 } 
@@ -620,11 +675,55 @@
                 let ts = [], ds = details.filter(x=>x.net < -0.01).sort((a,b)=>a.net-b.net), cs = details.filter(x=>x.net > 0.01).sort((a,b)=>b.net-a.net);
                 let i=0, j=0; while(i < ds.length && j < cs.length) {
                     let amt = Math.min(Math.abs(ds[i].net), cs[j].net);
-                    ts.push({from: ds[i].name, to: cs[j].name, amount: amt});
+                    ts.push({from_id: ds[i].id, to_id: cs[j].id, from: ds[i].name, to: cs[j].name, amount: amt});
                     ds[i].net += amt; cs[j].net -= amt; if(Math.abs(ds[i].net)<0.01) i++; if(cs[j].net<0.01) j++;
                 }
                 return { transfers: ts };
             });
+
+            async function addRepayment(t) {
+                const alreadyPaid = getRepaidAmount(t.from_id, t.to_id);
+                const remain = Math.max(0, Math.round((Number(t.amount) - alreadyPaid) * 100) / 100);
+                if (remain <= 0) {
+                    alert('這筆已經還清');
+                    return;
+                }
+
+                const input = prompt(`登記還款金額\n${t.from} 給 ${t.to}`, String(Math.round(remain)));
+                if (input === null) return;
+
+                const amount = Number(input);
+                if (!amount || amount <= 0) {
+                    alert('請輸入正確金額');
+                    return;
+                }
+
+                await client.from('repayments').insert({
+                    project_id: currentProjectId.value,
+                    from_member_id: t.from_id,
+                    to_member_id: t.to_id,
+                    amount: amount
+                });
+
+                await loadData();
+            }
+
+            async function clearRepayments(t) {
+                if (!confirm(`確定清除 ${t.from} 給 ${t.to} 的還款紀錄？`)) return;
+                await client
+                    .from('repayments')
+                    .delete()
+                    .eq('project_id', currentProjectId.value)
+                    .eq('from_member_id', t.from_id)
+                    .eq('to_member_id', t.to_id);
+                await loadData();
+            }
+
+            async function deleteRepayment(id) {
+                if (!confirm('確定刪除這筆還款紀錄？')) return;
+                await client.from('repayments').delete().eq('id', id);
+                await loadData();
+            }
 
             function pressPin(n) { if (pin.value.length < 4) pin.value += n; if (pin.value.length === 4) handlePinComplete(); }
             async function handlePinComplete() { if (isLocked.value) { if (pin.value === adminPass.value) { isLocked.value = false; currentProjectId.value = null; pin.value = ''; fetchProjects(); } else { alert('PIN 錯誤'); pin.value = ''; } } else if (showPassSettings.value) { await client.from('app_settings').upsert({ id: 'admin_password', value: pin.value }); adminPass.value = pin.value; showPassSettings.value = false; pin.value = ''; } }
@@ -678,7 +777,7 @@
                 }
             }
 
-            return { projects, currentProjectId, projectMeta, members, expenses, groupedExpenses, showModal, showSettlement, isEditing, form, isValid, totalExpense, memberStats, settlement, isLocked, pin, pinContext, showPassSettings, newProjectTitle, showToast, toastMsg, isRefreshing, editingProjectId, editingProjectName, editingProjectDate, formatDate, getPayerDisplay, getSplitCount, fetchProjects, createProject, enterProject, loadData, manualRefresh, startEditProject, saveProjectName, deleteProject, addMember, updateMember, deleteMember, openAddExpense, openEditExpense, toggleMemberPay, toggleMemberSplit, toggleAllSplit, submitExpense, deleteExpense, pressPin, handlePinComplete, backToHome, closePinPad, triggerPassSetup, copyLink, copyProjectId, downloadSettlementImage, payManualDiff, splitManualDiff, invalidExpenseIds, handleSettlementClick, categoryStats, sortedCategoryList };
+            return { projects, currentProjectId, projectMeta, members, expenses, repayments, groupedExpenses, showModal, showSettlement, isEditing, form, isValid, totalExpense, memberStats, settlement, isLocked, pin, pinContext, showPassSettings, newProjectTitle, showToast, toastMsg, isRefreshing, editingProjectId, editingProjectName, editingProjectDate, formatDate, getPayerDisplay, getSplitCount, fetchProjects, createProject, enterProject, loadData, manualRefresh, startEditProject, saveProjectName, deleteProject, addMember, updateMember, deleteMember, openAddExpense, openEditExpense, toggleMemberPay, toggleMemberSplit, toggleAllSplit, submitExpense, deleteExpense, pressPin, handlePinComplete, backToHome, closePinPad, triggerPassSetup, copyLink, copyProjectId, downloadSettlementImage, payManualDiff, splitManualDiff, invalidExpenseIds, handleSettlementClick, categoryStats, sortedCategoryList, repaymentHistory, getRepaidAmount, addRepayment, clearRepayments, deleteRepayment };
         }
     }).mount('#app');
 </script>
