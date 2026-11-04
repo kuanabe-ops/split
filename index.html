@@ -151,7 +151,7 @@
                     個人支出
                 </h3>
                 <div class="space-y-3 w-full max-w-[240px] bg-white/5 p-5 rounded-[24px] border border-white/10">
-                    <div v-for="m in members" :key="m.id" class="flex justify-between text-sm"><span class="f-medium text-blue-300">{{m.name}}</span><span class="f-medium text-white">${{ (memberStats[m.id] || 0).toLocaleString() }}</span></div>
+                    <div v-for="m in members" :key="m.id" class="flex justify-between text-sm"><span class="f-medium text-blue-300">{{m.name}}</span><span class="f-medium text-white">${{ Math.round(memberStats[m.id] || 0).toLocaleString() }}</span></div>
                 </div>
                 <div class="mt-6 text-center text-sm text-blue-300 f-medium tracking-wider">總支出 ${{ totalExpense.toLocaleString() }}</div>
                 <button @click="handleSettlementClick" class="mt-10 bg-white text-black px-10 py-3 rounded-full text-sm f-medium tracking-wider shadow-lg active:scale-95 transition-all">查看結算</button>
@@ -220,29 +220,55 @@
                     <button @click="showSettlement=false" class="p-3 bg-white/5 rounded-2xl text-gray-500 hover:text-white transition-colors"><i data-lucide="x" class="w-5 h-5"></i></button>
                 </div>
             </div>
-            <div class="space-y-6">
-                <div v-for="t in settlement.transfers" class="p-6 rounded-[24px] bg-white/5 border border-white/10 backdrop-blur-md">
-                    <div class="flex justify-between items-center">
-                        <div class="flex flex-col gap-1"><span class="text-[14px] text-blue-300 uppercase tracking-widest">由 {{t.from}}</span><span class="text-sm f-medium text-white">給 {{t.to}}</span></div>
-                        <span class="f-medium text-2xl text-white">${{Math.round(t.amount)}}</span>
-                    </div>
+            <div class="space-y-1">
+                <div
+                    v-for="t in settlement.transfers"
+                    :key="`${t.from_id}-${t.to_id}`"
+                    class="flex items-center gap-3 py-3 px-2"
+                >
+                    <!-- 由 -->
+                    <span class="text-base text-white/90 whitespace-nowrap">
+                        由
+                    </span>
 
-                    <div class="mt-5 pt-4 border-t border-white/10">
-                        <div class="flex justify-between text-xs mb-2">
-                            <span class="text-gray-400">已還款</span>
-                            <span class="text-green-300 f-medium">${{ Math.round(getRepaidAmount(t.from_id, t.to_id)).toLocaleString() }}</span>
-                        </div>
-                        <div class="flex justify-between text-xs mb-4">
-                            <span class="text-gray-400">剩餘</span>
-                            <span class="text-red-300 f-medium">${{ Math.max(0, Math.round(t.amount)).toLocaleString() }}</span>
-                        </div>
-                        <div class="flex gap-2" data-html2canvas-ignore>
-                            <button @click="addRepayment(t)" class="flex-1 bg-white text-black py-2 rounded-xl text-xs f-medium active:scale-95 transition">登記還款</button>
-                            <button @click="clearRepayments(t)" class="px-4 bg-white/5 text-red-300 py-2 rounded-xl text-xs f-medium active:scale-95 transition">清除</button>
-                        </div>
-                    </div>
+                    <!-- 付款人 -->
+                    <span class="text-lg f-medium text-blue-400 min-w-[28px] text-center">
+                        {{ t.from }}
+                    </span>
+
+                    <!-- 轉給 -->
+                    <span class="text-base text-white/90 whitespace-nowrap">
+                        轉給
+                    </span>
+
+                    <!-- 收款人 -->
+                    <span class="text-lg f-medium text-blue-400 min-w-[28px] text-center">
+                        {{ t.to }}
+                    </span>
+
+                    <!-- 金額 -->
+                    <span class="ml-auto text-xl f-medium text-orange-400 whitespace-nowrap">
+                        ${{ Math.round(Number(t.amount)).toLocaleString('zh-TW') }}
+                    </span>
+
+                    <!-- 還款 -->
+                    <button
+                        @click="addRepayment(t)"
+                        class="ml-2 px-4 py-2 bg-white text-black rounded-xl text-sm f-medium
+                               active:scale-95 transition-all whitespace-nowrap"
+                        data-html2canvas-ignore
+                    >
+                        還款
+                    </button>
                 </div>
-                <p v-if="settlement.transfers.length === 0" class="text-center text-blue-300 py-10">目前無須轉帳</p>
+
+                <!-- 無須轉帳 -->
+                <p
+                    v-if="settlement.transfers.length === 0"
+                    class="text-center text-blue-300 py-10"
+                >
+                    目前無須轉帳
+                </p>
             </div>
 
             <div v-if="repayments.length > 0" class="mt-12">
@@ -666,50 +692,93 @@
             async function deleteExpense() { if (confirm('確定刪除花費？')) { await client.from('expenses').delete().eq('id', editingExpenseId.value); showModal.value=false; loadData(); } }
 
             const settlement = computed(() => {
-                let bal = {}; members.value.forEach(m => bal[m.id]=0);
-                expenses.value.forEach(e => {
-                    for(let id in e.payers) if(bal[id] !== undefined) bal[id] += Math.round(Number(e.payers[id]) * 100);
-                    for(let id in e.split_details) if(bal[id] !== undefined) bal[id] -= Math.round(Number(e.split_details[id]) * 100);
+                // 全部使用「分」計算，避免浮點數誤差
+                let bal = {};
+
+                members.value.forEach(m => {
+                    bal[m.id] = 0;
                 });
+
+                // 計算每個人的付款與應分攤金額
+                expenses.value.forEach(e => {
+                    for (let id in e.payers) {
+                        if (bal[id] !== undefined) {
+                            bal[id] += Math.round(Number(e.payers[id]) * 100);
+                        }
+                    }
+
+                    for (let id in e.split_details) {
+                        if (bal[id] !== undefined) {
+                            bal[id] -= Math.round(Number(e.split_details[id]) * 100);
+                        }
+                    }
+                });
+
+                // 扣除已登記的還款
                 repayments.value.forEach(r => {
                     const fromId = r.from_member_id;
                     const toId = r.to_member_id;
                     const amount = Math.round(Number(r.amount || 0) * 100);
-                    if (bal[fromId] !== undefined && bal[toId] !== undefined && amount > 0) {
+
+                    if (
+                        bal[fromId] !== undefined &&
+                        bal[toId] !== undefined &&
+                        amount > 0
+                    ) {
                         bal[fromId] += amount;
                         bal[toId] -= amount;
                     }
                 });
-                const details = members.value.map(m => ({ id: m.id, name: m.name, net: bal[m.id]/100 }));
-                let ts = [],
-                    ds = details.filter(x => x.net < -0.01).sort((a, b) => a.net - b.net),
-                    cs = details.filter(x => x.net > 0.01).sort((a, b) => b.net - a.net);
-                
-                let i = 0, j = 0;
-                
-                while (i < ds.length && j < cs.length) {
-                
-                    let amt = Math.min(Math.abs(ds[i].net), cs[j].net);
-                
-                    // 只保留實際需要轉帳的金額
-                    if (amt >= 0.01) {
-                        ts.push({
-                            from_id: ds[i].id,
-                            to_id: cs[j].id,
-                            from: ds[i].name,
-                            to: cs[j].name,
-                            amount: amt
+
+                // 保持以「分」為單位，不使用浮點數
+                const details = members.value.map(m => ({
+                    id: m.id,
+                    name: m.name,
+                    net: bal[m.id]
+                }));
+
+                const debtors = details
+                    .filter(x => x.net < 0)
+                    .sort((a, b) => a.net - b.net);
+
+                const creditors = details
+                    .filter(x => x.net > 0)
+                    .sort((a, b) => b.net - a.net);
+
+                let transfers = [];
+                let i = 0;
+                let j = 0;
+
+                while (i < debtors.length && j < creditors.length) {
+                    const amountCents = Math.min(
+                        Math.abs(debtors[i].net),
+                        creditors[j].net
+                    );
+
+                    // 只建立「至少 1 元」的轉帳
+                    if (amountCents >= 100) {
+                        transfers.push({
+                            from_id: debtors[i].id,
+                            to_id: creditors[j].id,
+                            from: debtors[i].name,
+                            to: creditors[j].name,
+
+                            // 最後才轉回元，可保留正常小數
+                            amount: amountCents / 100
                         });
                     }
-                
-                    ds[i].net += amt;
-                    cs[j].net -= amt;
-                
-                    if (Math.abs(ds[i].net) < 0.01) i++;
-                    if (cs[j].net < 0.01) j++;
+
+                    debtors[i].net += amountCents;
+                    creditors[j].net -= amountCents;
+
+                    if (debtors[i].net === 0) i++;
+                    if (creditors[j].net === 0) j++;
                 }
-                
-                return { transfers: ts };
+
+                // 最後再保險過濾一次
+                return {
+                    transfers: transfers.filter(t => Number(t.amount) >= 1)
+                };
             });
 
             async function addRepayment(t) {
