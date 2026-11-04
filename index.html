@@ -187,9 +187,9 @@
                         <div v-else class="space-y-3">
                             <div v-for="m in members" class="flex justify-between items-center p-3 bg-white/5 rounded-2xl">
                                 <span class="text-sm text-white">{{m.name}}</span>
-                                <input v-model.number="form.manualP[m.id]" type="number" class="w-24 bg-transparent text-right outline-none text-base text-white border-b border-white/10">
+                                <input :value="Number(form.manualP[m.id] || 0).toFixed(1)" @change="form.manualP[m.id] = Number($event.target.value)" type="number" step="0.1" class="w-24 bg-transparent text-right outline-none text-base text-white border-b border-white/10">
                             </div>
-                            <p class="text-sm text-center mt-2" :class="Math.abs(payManualDiff) > 0.1 ? 'text-red-400' : 'text-green-400'">差額 {{ payManualDiff > 0 ? '+' : '' }}{{ payManualDiff.toFixed(1) }}</p>
+                            <p class="text-sm text-center mt-2" :class="Math.round(Math.abs(payManualDiff) * 10) !== 0 ? 'text-red-400' : 'text-green-400'">差額 {{ payManualDiff > 0 ? '+' : '' }}{{ payManualDiff.toFixed(1) }}</p>
                         </div>
                     </div>
                     <div>
@@ -200,9 +200,9 @@
                         <div v-else class="space-y-3">
                             <div v-for="m in members" class="flex justify-between items-center p-3 bg-white/5 rounded-2xl">
                                 <span class="text-sm text-white">{{m.name}}</span>
-                                <input v-model.number="form.manualS[m.id]" type="number" class="w-24 bg-transparent text-right outline-none text-base text-white border-b border-white/10">
+                                <input :value="Number(form.manualS[m.id] || 0).toFixed(1)" @change="form.manualS[m.id] = Number($event.target.value)" type="number" step="0.1" class="w-24 bg-transparent text-right outline-none text-base text-white border-b border-white/10">
                             </div>
-                            <p class="text-sm text-center mt-2" :class="Math.abs(splitManualDiff) > 0.1 ? 'text-red-400' : 'text-green-400'">差額 {{ splitManualDiff > 0 ? '+' : '' }}{{ splitManualDiff.toFixed(1) }}</p>
+                            <p class="text-sm text-center mt-2" :class="Math.round(Math.abs(splitManualDiff) * 10) !== 0 ? 'text-red-400' : 'text-green-400'">差額 {{ splitManualDiff > 0 ? '+' : '' }}{{ splitManualDiff.toFixed(1) }}</p>
                         </div>
                     </div>
                 </div>
@@ -255,7 +255,7 @@
 
                     <!-- 金額 -->
                     <span class="text-sm f-medium text-green-300 text-right whitespace-nowrap tabular-nums">
-                        ${{ Math.round(Number(t.amount)).toLocaleString('zh-TW') }}
+                       ${{ Math.round(Number(t.amount)).toLocaleString('zh-TW') }}
                     </span>
 
                     <!-- 還款按鈕 -->
@@ -648,10 +648,15 @@
             function validateBeforeSettlement() {
                 invalidExpenseIds.value = [];
                 expenses.value.forEach(exp => {
-                    const total = Math.round(Number(exp.amount) * 100);
-                    const paySum = Object.values(exp.payers || {}).reduce((a,b)=> a + Math.round(Number(b)*100), 0);
-                    const splitSum = Object.values(exp.split_details || {}).reduce((a,b)=> a + Math.round(Number(b)*100), 0);
-                    if (Math.abs(total - paySum) > 1 || Math.abs(total - splitSum) > 1) {
+                    // 檢核時統一比較到小數第一位；資料本身仍保留原始精度
+                    const total = Math.round((Number(exp.amount) || 0) * 10);
+                    const paySum = Math.round(
+                        Object.values(exp.payers || {}).reduce((sum, value) => sum + (Number(value) || 0), 0) * 10
+                    );
+                    const splitSum = Math.round(
+                        Object.values(exp.split_details || {}).reduce((sum, value) => sum + (Number(value) || 0), 0) * 10
+                    );
+                    if (total !== paySum || total !== splitSum) {
                         invalidExpenseIds.value.push(exp.id);
                     }
                 });
@@ -692,9 +697,18 @@
                 showModal.value = true;
             }
 
-            const payManualDiff = computed(() => Number(form.value.amount) - Object.values(form.value.manualP).reduce((a,b)=>a+(Number(b)||0), 0));
-            const splitManualDiff = computed(() => Number(form.value.amount) - Object.values(form.value.manualS).reduce((a,b)=>a+(Number(b)||0), 0));
-            const isValid = computed(() => form.value.title && Number(form.value.amount) > 0 && (form.value.pMode === 'manual' ? Math.abs(payManualDiff.value) < 1 : form.value.pList.length > 0) && (form.value.sMode === 'manual' ? Math.abs(splitManualDiff.value) < 1 : form.value.sList.length > 0));
+            // 差額以「總額與明細加總各自四捨五入到小數第一位」計算，原始資料不改精度
+            const payManualDiff = computed(() =>
+                (Math.round((Number(form.value.amount) || 0) * 10) -
+                 Math.round(Object.values(form.value.manualP).reduce((a,b)=>a+(Number(b)||0), 0) * 10)) / 10
+            );
+            const splitManualDiff = computed(() =>
+                (Math.round((Number(form.value.amount) || 0) * 10) -
+                 Math.round(Object.values(form.value.manualS).reduce((a,b)=>a+(Number(b)||0), 0) * 10)) / 10
+            );
+            const isValid = computed(() => form.value.title && Number(form.value.amount) > 0 &&
+                (form.value.pMode === 'manual' ? payManualDiff.value === 0 : form.value.pList.length > 0) &&
+                (form.value.sMode === 'manual' ? splitManualDiff.value === 0 : form.value.sList.length > 0));
 
             async function submitExpense() {
                 let p = {}, s = {}; const totalCents = Math.round(form.value.amount * 100);
@@ -803,7 +817,7 @@
                     return;
                 }
 
-                const input = prompt(`登記還款金額\n${t.from} 給 ${t.to}`, String(Math.round(remain)));
+                const input = prompt(`登記還款金額\n${t.from} 給 ${t.to}`, remain.toFixed(2));
                 if (input === null) return;
 
                 const amount = Number(input);
