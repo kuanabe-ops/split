@@ -213,62 +213,74 @@
 
     <div v-if="showSettlement" class="fixed inset-0 bg-[#0F1115] z-[300] flex flex-col p-8 overflow-y-auto animate-in fade-in">
         <div id="settlementCaptureArea" class="w-full bg-[#0F1115] pb-6">
-            <div class="flex justify-between items-center mb-16">
+            <div class="flex justify-between items-center mb-8">
                 <h2 class="text-3xl f-light text-white">建議轉帳路徑</h2>
                 <div class="flex gap-2" data-html2canvas-ignore>
                     <button @click="downloadSettlementImage" class="p-3 bg-white/5 rounded-2xl text-gray-500 hover:text-white transition-colors"><i data-lucide="download" class="w-5 h-5"></i></button>
                     <button @click="showSettlement=false" class="p-3 bg-white/5 rounded-2xl text-gray-500 hover:text-white transition-colors"><i data-lucide="x" class="w-5 h-5"></i></button>
                 </div>
             </div>
-            <div class="space-y-1">
+
+            <div class="space-y-3">
                 <div
                     v-for="t in settlement.transfers"
                     :key="`${t.from_id}-${t.to_id}`"
-                    class="flex items-center gap-3 py-3 px-2"
+                    class="grid items-center gap-2 px-3 py-4 rounded-2xl
+                           bg-white/[0.04] border border-white/[0.08]
+                           hover:bg-white/[0.07] transition-colors"
+                    style="grid-template-columns: 22px minmax(0,1fr) 42px minmax(0,1fr) auto 84px;"
                 >
                     <!-- 由 -->
-                    <span class="text-base text-white/90 whitespace-nowrap">
+                    <span class="text-sm text-gray-400 whitespace-nowrap">
                         由
                     </span>
 
                     <!-- 付款人 -->
-                    <span class="text-lg f-medium text-blue-400 min-w-[28px] text-center">
+                    <span class="text-sm f-medium text-blue-300 min-w-0 truncate">
                         {{ t.from }}
                     </span>
 
                     <!-- 轉給 -->
-                    <span class="text-base text-white/90 whitespace-nowrap">
+                    <span class="text-sm text-gray-400 whitespace-nowrap text-center">
                         轉給
                     </span>
 
                     <!-- 收款人 -->
-                    <span class="text-lg f-medium text-blue-400 min-w-[28px] text-center">
+                    <span class="text-sm f-medium text-blue-300 min-w-0 truncate">
                         {{ t.to }}
                     </span>
 
                     <!-- 金額 -->
-                    <span class="ml-auto text-xl f-medium text-orange-400 whitespace-nowrap">
+                    <span class="text-base f-medium text-orange-400 whitespace-nowrap text-right tabular-nums">
                         ${{ Math.round(Number(t.amount)).toLocaleString('zh-TW') }}
                     </span>
 
-                    <!-- 還款 -->
+                    <!-- 還款按鈕 -->
                     <button
                         @click="addRepayment(t)"
-                        class="ml-2 px-4 py-2 bg-white text-black rounded-xl text-sm f-medium
-                               active:scale-95 transition-all whitespace-nowrap"
                         data-html2canvas-ignore
+                        class="w-[84px] py-2 rounded-xl text-xs f-medium
+                               bg-white/10 border border-white/10 text-white
+                               hover:bg-white hover:text-black
+                               active:scale-95 transition-all whitespace-nowrap"
                     >
-                        還款
+                        登記還款
                     </button>
                 </div>
 
-                <!-- 無須轉帳 -->
-                <p
+                <!-- 沒有待轉帳項目 -->
+                <div
                     v-if="settlement.transfers.length === 0"
-                    class="text-center text-blue-300 py-10"
+                    class="py-12 text-center rounded-2xl
+                           bg-white/[0.03] border border-white/[0.06]"
                 >
-                    目前無須轉帳
-                </p>
+                    <div class="text-blue-300 text-sm f-medium mb-2">
+                        目前無須轉帳
+                    </div>
+                    <p class="text-xs text-gray-500">
+                        所有款項都已經結清
+                    </p>
+                </div>
             </div>
 
             <div v-if="repayments.length > 0" class="mt-12">
