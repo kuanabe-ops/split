@@ -681,12 +681,34 @@
                     }
                 });
                 const details = members.value.map(m => ({ id: m.id, name: m.name, net: bal[m.id]/100 }));
-                let ts = [], ds = details.filter(x=>x.net < -0.01).sort((a,b)=>a.net-b.net), cs = details.filter(x=>x.net > 0.01).sort((a,b)=>b.net-a.net);
-                let i=0, j=0; while(i < ds.length && j < cs.length) {
+                let ts = [],
+                    ds = details.filter(x => x.net < -0.01).sort((a, b) => a.net - b.net),
+                    cs = details.filter(x => x.net > 0.01).sort((a, b) => b.net - a.net);
+                
+                let i = 0, j = 0;
+                
+                while (i < ds.length && j < cs.length) {
+                
                     let amt = Math.min(Math.abs(ds[i].net), cs[j].net);
-                    ts.push({from_id: ds[i].id, to_id: cs[j].id, from: ds[i].name, to: cs[j].name, amount: amt});
-                    ds[i].net += amt; cs[j].net -= amt; if(Math.abs(ds[i].net)<0.01) i++; if(cs[j].net<0.01) j++;
+                
+                    // 只保留實際需要轉帳的金額
+                    if (amt >= 0.01) {
+                        ts.push({
+                            from_id: ds[i].id,
+                            to_id: cs[j].id,
+                            from: ds[i].name,
+                            to: cs[j].name,
+                            amount: amt
+                        });
+                    }
+                
+                    ds[i].net += amt;
+                    cs[j].net -= amt;
+                
+                    if (Math.abs(ds[i].net) < 0.01) i++;
+                    if (cs[j].net < 0.01) j++;
                 }
+                
                 return { transfers: ts };
             });
 
