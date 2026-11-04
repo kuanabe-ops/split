@@ -220,29 +220,38 @@
                     <button @click="showSettlement=false" class="p-3 bg-white/5 rounded-2xl text-gray-500 hover:text-white transition-colors"><i data-lucide="x" class="w-5 h-5"></i></button>
                 </div>
             </div>
-
             <div class="space-y-3">
+
+                <!-- 表頭 -->
+                <div
+                    class="grid items-center gap-2 px-3 pb-2
+                           text-[11px] text-gray-500 tracking-wider"
+                    style="grid-template-columns: minmax(0,1fr) 18px minmax(0,1fr) 76px 48px;"
+                >
+                    <span>付款人</span>
+                    <span></span>
+                    <span>收款人</span>
+                    <span class="text-right">金額</span>
+                    <span></span>
+                </div>
+
+                <!-- 轉帳項目 -->
                 <div
                     v-for="t in settlement.transfers"
                     :key="`${t.from_id}-${t.to_id}`"
                     class="grid items-center gap-2 px-3 py-4 rounded-2xl
                            bg-white/[0.04] border border-white/[0.08]
                            hover:bg-white/[0.07] transition-colors"
-                    style="grid-template-columns: 22px minmax(0,1fr) 42px minmax(0,1fr) auto 84px;"
+                    style="grid-template-columns: minmax(0,1fr) 18px minmax(0,1fr) 76px 48px;"
                 >
-                    <!-- 由 -->
-                    <span class="text-sm text-gray-400 whitespace-nowrap">
-                        由
-                    </span>
-
                     <!-- 付款人 -->
                     <span class="text-sm f-medium text-blue-300 min-w-0 truncate">
                         {{ t.from }}
                     </span>
 
-                    <!-- 轉給 -->
-                    <span class="text-sm text-gray-400 whitespace-nowrap text-center">
-                        轉給
+                    <!-- 方向箭頭 -->
+                    <span class="text-blue-400 text-center text-sm">
+                        →
                     </span>
 
                     <!-- 收款人 -->
@@ -251,7 +260,7 @@
                     </span>
 
                     <!-- 金額 -->
-                    <span class="text-base f-medium text-orange-400 whitespace-nowrap text-right tabular-nums">
+                    <span class="text-sm f-medium text-green-300 text-right whitespace-nowrap tabular-nums">
                         ${{ Math.round(Number(t.amount)).toLocaleString('zh-TW') }}
                     </span>
 
@@ -259,10 +268,10 @@
                     <button
                         @click="addRepayment(t)"
                         data-html2canvas-ignore
-                        class="w-[84px] py-2 rounded-xl text-xs f-medium
+                        class="w-12 py-2 rounded-lg text-xs f-medium
                                bg-white/10 border border-white/10 text-white
                                hover:bg-white hover:text-black
-                               active:scale-95 transition-all whitespace-nowrap"
+                               active:scale-95 transition-all"
                     >
                         還款
                     </button>
@@ -281,14 +290,14 @@
                         所有款項都已經結清
                     </p>
                 </div>
-            </div>
 
+            </div>
             <div v-if="repayments.length > 0" class="mt-12">
                 <h3 class="text-xs text-blue-300 tracking-[0.3em] uppercase f-medium mb-4">還款紀錄</h3>
                 <div class="space-y-3">
                     <div v-for="r in repaymentHistory" :key="r.id" class="flex justify-between items-center px-4 py-3 rounded-2xl bg-white/5 border border-white/10">
                         <div>
-                            <div class="text-sm text-white f-medium">{{ r.fromName }} 給 {{ r.toName }}</div>
+                            <div class="text-sm text-white f-medium">{{ r.fromName }} 已給 {{ r.toName }}</div>
                             <div class="text-[10px] text-gray-500 tracking-widest">{{ formatDate(r.created_at) }}</div>
                         </div>
                         <div class="flex items-center gap-3">
