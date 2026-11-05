@@ -211,6 +211,52 @@
         </div>
     </div>
 
+    <!-- 還款金額輸入視窗：避免部分 App 內建瀏覽器阻擋原生 prompt -->
+    <div v-if="showRepaymentModal" class="fixed inset-0 bg-black/60 backdrop-blur-md z-[350] flex items-center justify-center p-6">
+        <div class="bg-[#161A22] w-full max-w-[360px] rounded-[28px] p-6 border border-white/10 shadow-2xl">
+            <div class="flex justify-between items-center mb-6">
+                <div>
+                    <div class="text-xs tracking-[0.25em] text-blue-300 uppercase f-medium mb-2">登記還款</div>
+                    <div class="grid grid-cols-2 gap-3 mt-2 mb-5">
+                        <div class="min-w-0">
+                            <label class="block text-xs text-gray-400 mb-2">付款人</label>
+                            <select v-model="repaymentForm.from_id"
+                                class="w-full min-w-0 bg-[#222936] border border-white/10 rounded-xl px-2 py-3 text-white text-sm">
+                                <option v-for="m in members" :key="m.id" :value="m.id">
+                                    {{ m.name }}
+                                </option>
+                            </select>
+                        </div>
+
+                        <div class="min-w-0">
+                            <label class="block text-xs text-gray-400 mb-2">收款人</label>
+                            <select v-model="repaymentForm.to_id"
+                                class="w-full min-w-0 bg-[#222936] border border-white/10 rounded-xl px-2 py-3 text-white text-sm">
+                                <option v-for="m in members" :key="m.id" :value="m.id">
+                                    {{ m.name }}
+                                </option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <label class="block text-xs text-gray-400 mb-2">還款金額</label>
+            <input
+                v-model.number="repaymentForm.amount"
+                type="number"
+                inputmode="decimal"
+                min="0"
+                step="0.01"
+                @keyup.enter="submitRepayment"
+                class="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-lg text-white outline-none focus:border-blue-400/50"
+            >
+            <div class="flex gap-3 mt-6">
+                <button @click="closeRepaymentModal" class="flex-1 bg-white/5 border border-white/10 text-white py-3 rounded-2xl text-sm f-medium">取消</button>
+                <button @click="submitRepayment" class="flex-1 bg-white text-black py-3 rounded-2xl text-sm f-medium active:scale-95 transition-all">確認還款</button>
+            </div>
+        </div>
+    </div>
+
     <div v-if="showSettlement" class="fixed inset-0 bg-[#0F1115] z-[300] flex flex-col p-8 overflow-y-auto animate-in fade-in">
         <div id="settlementCaptureArea" class="w-full bg-[#0F1115] pb-6">
             <div class="flex justify-between items-center mb-8">
@@ -358,6 +404,7 @@
             const editingProjectId = ref(null); const editingProjectName = ref(''); const editingProjectDate = ref('');
             const adminPass = ref(null); const isLocked = ref(false); const showPassSettings = ref(false); const pin = ref('');
             const newProjectTitle = ref(''); const showToast = ref(false); const toastMsg = ref('連結已複製'); const isRefreshing = ref(false);
+            const showRepaymentModal = ref(false); const repaymentForm = ref({ from_id: null, to_id: null, from: '', to: '', amount: 0, maxAmount: 0 });
 
             const form = ref({ title: '', amount: '', date: '', category: '', pMode: 'equal', pList: [], manualP: {}, sMode: 'equal', sList: [], manualS: {} });
             const invalidExpenseIds = ref([]);
@@ -369,7 +416,7 @@
                 const pid = new URLSearchParams(window.location.search).get('pid');
                 if (pid) enterProject(pid); else fetchProjects();
             });
-            watch([projects, currentProjectId, showModal, showSettlement, isLocked, repayments], refreshIcons);
+            watch([projects, currentProjectId, showModal, showSettlement, showRepaymentModal, isLocked, repayments], refreshIcons);
 
             const formatDate = (d) => d ? new Date(d).toISOString().split('T')[0] : '';
             function getSplitCount(exp) { return Object.values(exp.split_details || {}).filter(v => Number(v) > 0.1).length; }
@@ -722,28 +769,62 @@
 
             const settlement = computed(() => {
                 // 全部使用「分」計算，避免浮點數誤差
-                let bal = {};
-
+                const expenseBal = {};
                 members.value.forEach(m => {
-                    bal[m.id] = 0;
+                    expenseBal[m.id] = 0;
                 });
 
-                // 計算每個人的付款與應分攤金額
+                // 先計算尚未扣除還款前的原始欠款關係
                 expenses.value.forEach(e => {
                     for (let id in e.payers) {
-                        if (bal[id] !== undefined) {
-                            bal[id] += Math.round(Number(e.payers[id]) * 100);
+                        if (expenseBal[id] !== undefined) {
+                            expenseBal[id] += Math.round(Number(e.payers[id]) * 100);
                         }
                     }
 
                     for (let id in e.split_details) {
-                        if (bal[id] !== undefined) {
-                            bal[id] -= Math.round(Number(e.split_details[id]) * 100);
+                        if (expenseBal[id] !== undefined) {
+                            expenseBal[id] -= Math.round(Number(e.split_details[id]) * 100);
                         }
                     }
                 });
 
-                // 扣除已登記的還款
+                // 依照原始欠款關係建立「優先保留路徑」
+                // 後續登記還款時，盡可能沿用這些付款人與收款人組合
+                const preferredDebtors = members.value
+                    .map(m => ({ id: m.id, net: expenseBal[m.id] }))
+                    .filter(x => x.net < 0)
+                    .sort((a, b) => a.net - b.net);
+
+                const preferredCreditors = members.value
+                    .map(m => ({ id: m.id, net: expenseBal[m.id] }))
+                    .filter(x => x.net > 0)
+                    .sort((a, b) => b.net - a.net);
+
+                const preferredRoutes = [];
+                let pi = 0;
+                let pj = 0;
+                while (pi < preferredDebtors.length && pj < preferredCreditors.length) {
+                    const amountCents = Math.min(
+                        Math.abs(preferredDebtors[pi].net),
+                        preferredCreditors[pj].net
+                    );
+
+                    if (amountCents > 0) {
+                        preferredRoutes.push({
+                            from_id: preferredDebtors[pi].id,
+                            to_id: preferredCreditors[pj].id
+                        });
+                    }
+
+                    preferredDebtors[pi].net += amountCents;
+                    preferredCreditors[pj].net -= amountCents;
+                    if (preferredDebtors[pi].net === 0) pi++;
+                    if (preferredCreditors[pj].net === 0) pj++;
+                }
+
+                // 再扣除所有已登記的還款，取得目前每個人的實際淨額
+                const bal = { ...expenseBal };
                 repayments.value.forEach(r => {
                     const fromId = r.from_member_id;
                     const toId = r.to_member_id;
@@ -759,44 +840,62 @@
                     }
                 });
 
-                // 保持以「分」為單位，不使用浮點數
-                const details = members.value.map(m => ({
-                    id: m.id,
-                    name: m.name,
-                    net: bal[m.id]
-                }));
+                // 建立目前仍有欠款／應收款的餘額，並以原始路徑優先配對
+                const remaining = { ...bal };
+                const transfers = [];
+                const memberById = new Map(members.value.map(m => [String(m.id), m]));
 
-                const debtors = details
+                function addTransfer(fromId, toId, amountCents) {
+                    if (amountCents < 100) return;
+                    const fromMember = memberById.get(String(fromId));
+                    const toMember = memberById.get(String(toId));
+                    if (!fromMember || !toMember) return;
+
+                    transfers.push({
+                        from_id: fromMember.id,
+                        to_id: toMember.id,
+                        from: fromMember.name,
+                        to: toMember.name,
+                        amount: amountCents / 100
+                    });
+                }
+
+                // 只要原本的付款人仍是欠款方、收款人仍是收款方，就優先保留這條路徑
+                preferredRoutes.forEach(route => {
+                    const fromId = route.from_id;
+                    const toId = route.to_id;
+                    if (remaining[fromId] < 0 && remaining[toId] > 0) {
+                        const amountCents = Math.min(
+                            Math.abs(remaining[fromId]),
+                            remaining[toId]
+                        );
+                        addTransfer(fromId, toId, amountCents);
+                        remaining[fromId] += amountCents;
+                        remaining[toId] -= amountCents;
+                    }
+                });
+
+                // 原始路徑無法涵蓋的餘額，再用完整配對補足
+                // 因此即使有人超額還款、淨額正負反轉，也能重新算出正確方向與金額
+                const debtors = members.value
+                    .map(m => ({ id: m.id, net: remaining[m.id] }))
                     .filter(x => x.net < 0)
                     .sort((a, b) => a.net - b.net);
 
-                const creditors = details
+                const creditors = members.value
+                    .map(m => ({ id: m.id, net: remaining[m.id] }))
                     .filter(x => x.net > 0)
                     .sort((a, b) => b.net - a.net);
 
-                let transfers = [];
                 let i = 0;
                 let j = 0;
-
                 while (i < debtors.length && j < creditors.length) {
                     const amountCents = Math.min(
                         Math.abs(debtors[i].net),
                         creditors[j].net
                     );
 
-                    // 只建立「至少 1 元」的轉帳
-                    if (amountCents >= 100) {
-                        transfers.push({
-                            from_id: debtors[i].id,
-                            to_id: creditors[j].id,
-                            from: debtors[i].name,
-                            to: creditors[j].name,
-
-                            // 最後才轉回元，可保留正常小數
-                            amount: amountCents / 100
-                        });
-                    }
-
+                    addTransfer(debtors[i].id, creditors[j].id, amountCents);
                     debtors[i].net += amountCents;
                     creditors[j].net -= amountCents;
 
@@ -804,35 +903,53 @@
                     if (creditors[j].net === 0) j++;
                 }
 
-                // 最後再保險過濾一次
                 return {
                     transfers: transfers.filter(t => Number(t.amount) >= 1)
                 };
             });
 
-            async function addRepayment(t) {
+            function addRepayment(t) {
                 const remain = Math.max(0, Math.round(Number(t.amount) * 100) / 100);
                 if (remain <= 0) {
                     alert('這筆已經還清');
                     return;
                 }
 
-                const input = prompt(`登記還款金額\n${t.from} 給 ${t.to}`, remain.toFixed(2));
-                if (input === null) return;
+                // 改用 App 內的 Vue 視窗，不依賴部分 App 內建瀏覽器可能阻擋的 prompt()
+                repaymentForm.value = {
+                    from_id: t.from_id,
+                    to_id: t.to_id,
+                    from: t.from,
+                    to: t.to,
+                    amount: Math.round(remain),
+                    maxAmount: remain
+                };
+                showRepaymentModal.value = true;
+            }
 
-                const amount = Number(input);
+            function closeRepaymentModal() {
+                showRepaymentModal.value = false;
+                repaymentForm.value = { from_id: null, to_id: null, from: '', to: '', amount: 0, maxAmount: 0 };
+            }
+
+            async function submitRepayment() {
+                const amount = Number(repaymentForm.value.amount);
                 if (!amount || amount <= 0) {
                     alert('請輸入正確金額');
                     return;
                 }
-
+                if (repaymentForm.value.from_id == repaymentForm.value.to_id) {
+                    alert('付款人和收款人不能是同一人');
+                    return;
+                }
                 await client.from('repayments').insert({
                     project_id: currentProjectId.value,
-                    from_member_id: t.from_id,
-                    to_member_id: t.to_id,
+                    from_member_id: repaymentForm.value.from_id,
+                    to_member_id: repaymentForm.value.to_id,
                     amount: amount
                 });
 
+                closeRepaymentModal();
                 await loadData();
             }
 
@@ -905,7 +1022,7 @@
                 }
             }
 
-            return { projects, currentProjectId, projectMeta, members, expenses, repayments, groupedExpenses, showModal, showSettlement, isEditing, form, isValid, totalExpense, memberStats, settlement, isLocked, pin, pinContext, showPassSettings, newProjectTitle, showToast, toastMsg, isRefreshing, editingProjectId, editingProjectName, editingProjectDate, formatDate, getPayerDisplay, getSplitCount, fetchProjects, createProject, enterProject, loadData, manualRefresh, startEditProject, saveProjectName, deleteProject, addMember, updateMember, deleteMember, openAddExpense, openEditExpense, toggleMemberPay, toggleMemberSplit, toggleAllSplit, submitExpense, deleteExpense, pressPin, handlePinComplete, backToHome, closePinPad, triggerPassSetup, copyLink, copyProjectId, downloadSettlementImage, payManualDiff, splitManualDiff, invalidExpenseIds, handleSettlementClick, categoryStats, sortedCategoryList, repaymentHistory, getRepaidAmount, addRepayment, clearRepayments, deleteRepayment };
+            return { projects, currentProjectId, projectMeta, members, expenses, repayments, groupedExpenses, showModal, showSettlement, isEditing, form, isValid, totalExpense, memberStats, settlement, isLocked, pin, pinContext, showPassSettings, newProjectTitle, showToast, toastMsg, isRefreshing, showRepaymentModal, repaymentForm, editingProjectId, editingProjectName, editingProjectDate, formatDate, getPayerDisplay, getSplitCount, fetchProjects, createProject, enterProject, loadData, manualRefresh, startEditProject, saveProjectName, deleteProject, addMember, updateMember, deleteMember, openAddExpense, openEditExpense, toggleMemberPay, toggleMemberSplit, toggleAllSplit, submitExpense, deleteExpense, pressPin, handlePinComplete, backToHome, closePinPad, triggerPassSetup, copyLink, copyProjectId, downloadSettlementImage, payManualDiff, splitManualDiff, invalidExpenseIds, handleSettlementClick, categoryStats, sortedCategoryList, repaymentHistory, getRepaidAmount, addRepayment, closeRepaymentModal, submitRepayment, clearRepayments, deleteRepayment };
         }
     }).mount('#app');
 </script>
